@@ -153,19 +153,21 @@
   details.help summary { cursor: pointer; color: var(--accent); font-size: 12px; font-weight:600; }
   details.help div { color: var(--muted); font-size: 12.5px; padding: 8px 0 0; }
   code.k { font-family: var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .lang-btn { font-size: 12px; padding: 5px 10px; border-radius: 20px; min-width: 52px; }
   @media (max-width: 1100px) { .layout { grid-template-columns: 200px 1fr; } aside.preview { display:none; } }
 </style>
 </head>
 <body>
 <header class="topbar">
-  <div class="logo"><span class="dot"></span>Bouncer <span class="ver" id="verLabel">Config Editor</span></div>
+  <div class="logo"><span class="dot"></span>Bouncer <span class="ver" id="verLabel"></span></div>
   <div class="spacer"></div>
   <div class="btn-row">
-    <button class="ghost" onclick="document.getElementById('fileInput').click()">⬆ Import</button>
-    <button class="ghost" id="pasteBtn">⎘ Paste JSON</button>
-    <button class="ghost" id="resetBtn">↺ Reset</button>
-    <button class="ghost" id="copyBtn">⧉ Copy</button>
-    <button class="primary" id="downloadBtn">⬇ Export</button>
+    <button class="ghost lang-btn" id="langBtn"></button>
+    <button class="ghost" id="importBtn"></button>
+    <button class="ghost" id="pasteBtn"></button>
+    <button class="ghost" id="resetBtn"></button>
+    <button class="ghost" id="copyBtn"></button>
+    <button class="primary" id="downloadBtn"></button>
   </div>
   <input type="file" id="fileInput" class="file-input" accept=".json,.jsonc,.txt">
 </header>
@@ -175,9 +177,9 @@
   <main class="content" id="content"></main>
   <aside class="preview">
     <div class="ph">
-      <h3>Live config_json</h3>
+      <h3 id="previewTitle"></h3>
       <div class="spacer" style="flex:1"></div>
-      <span id="jsonStatus" class="pill">valid</span>
+      <span id="jsonStatus" class="pill"></span>
     </div>
     <pre id="jsonOut"></pre>
   </aside>
@@ -191,6 +193,302 @@
    Edits the JSON that goes into the Filter's `config_json` valve.
    ============================================================ */
 
+/* ---------- i18n ---------- */
+let lang = localStorage.getItem("bouncer_lang") || "en";
+
+const I18N = {
+  en: {
+    configEditor: "Config Editor",
+    import: "⬆ Import",
+    pasteJson: "⎘ Paste JSON",
+    reset: "↺ Reset",
+    copy: "⧉ Copy",
+    export: "⬇ Export",
+    liveConfig: "Live config_json",
+    valid: "valid",
+    switchLang: "中文",
+
+    // nav
+    navGeneral: "General",
+    navAuth: "Auth & Access",
+    navModels: "Model Groups",
+    navUsers: "User Groups",
+    navFallback: "Fallback",
+    navBans: "Ban List",
+    navAds: "Ads",
+    navMessages: "Messages",
+    navLogging: "Logging",
+
+    // general
+    generalTitle: "General",
+    generalDesc: "Master switches that gate everything Bouncer does.",
+    base: "Base",
+    bouncerEnabled: "Bouncer enabled",
+    bouncerEnabledHint: "Master kill-switch. Off = pass every request through.",
+    enforceAdmins: "Enforce on admins",
+    enforceAdminsHint: "When off, admin-role users bypass all checks.",
+    globalLimitScope: "Global rate-limit scope",
+    globalLimitEnabled: "Count requests globally",
+    globalLimitHint: "On = one shared counter per user across all model groups. Off = per model group.",
+    globalLimitNote: "Affects how request history is bucketed for every rate limit below.",
+
+    // auth
+    authTitle: "Auth & Access",
+    authDesc: "Gate access by email domain, an explicit whitelist, or exempt trusted users from every check.",
+    emailProviderAuth: "Email-provider auth",
+    restrictByDomain: "Restrict by email domain",
+    allowedProviders: "Allowed providers",
+    allowedProvidersHint: "domain part of the email, one per line",
+    denyMessage: "Deny message",
+    whitelist: "Whitelist",
+    whitelistOnly: "Only listed emails may access anything",
+    whitelistedEmails: "Whitelisted emails",
+    exemption: "Exemption",
+    exemptionEnabled: "Listed emails skip ALL checks",
+    exemptEmails: "Exempt emails",
+    exemptNote: "Exempt users bypass auth, whitelist, bans, rate limits and clipping.",
+
+    // models
+    modelsTitle: "Model Groups",
+    modelsDesc: "Bucket model IDs together. User-group permissions are granted per model group. A model in no group is treated as 'ungrouped' (uses each user group's default permissions).",
+    noModelGroups: "No model groups yet.",
+    name: "Name",
+    groupId: "Group ID",
+    groupIdHint: "stable key used in permissions",
+    modelIds: "Model IDs",
+    modelIdsHint: "matches provider / OpenWebUI variants automatically",
+    delete: "Delete",
+    addModelGroup: "＋ Add model group",
+
+    // users
+    usersTitle: "User Groups",
+    usersDesc: "Match users by email to a group (highest priority wins). A group with an empty email list is the catch-all default. Each group sets a permission profile per model group.",
+    catchAllDefault: "catch-all default",
+    priority: "Priority",
+    priorityHint: "higher wins on email match",
+    memberEmails: "Member emails",
+    memberEmailsPlaceholder: "leave empty = default group",
+    memberEmailsHint: "empty list = catch-all for everyone unmatched",
+    permissions: "Permissions",
+    permissionsHint: "0 = unlimited for that limit",
+    modelGroupCol: "Model group",
+    access: "Access",
+    defaultUngrouped: "Default / ungrouped",
+    permNote: "'Access' off denies the group access to that model group. The Default row applies to models in no group.",
+    addUserGroup: "＋ Add user group",
+
+    // fallback
+    fallbackTitle: "Fallback",
+    fallbackDesc: "Instead of denying a rate-limited request, silently switch it to a cheaper model.",
+    enableFallback: "Enable fallback on rate-limit",
+    fallbackModelId: "Fallback model ID",
+    notifyUser: "Notify user when switched",
+    notifyMessage: "Notify message",
+
+    // bans
+    bansTitle: "Ban List",
+    bansDesc: "Block specific emails with a custom suspension message.",
+    noBans: "No bans configured.",
+    banRule: "Ban rule #",
+    banMsg: "Message shown to banned user",
+    bannedEmails: "Banned emails",
+    addBanRule: "＋ Add ban rule",
+
+    // ads
+    adsTitle: "Ads",
+    adsDesc: "Emit a random status message with each request (shown as 'AD: …' in Open WebUI).",
+    enableAds: "Enable ad messages",
+    adLines: "Ad lines",
+    adLinesHint: "one ad per line, picked at random",
+    adPlaceholder: "Check out our Pro plan!",
+
+    // messages
+    messagesTitle: "Messages",
+    messagesDesc: "Customize the text shown when a request is denied. Placeholders in braces are filled in at runtime.",
+    msgGroupNoPerm: "Group access denied",
+    msgRateLimit: "Rate limit hit",
+    msgWhitelistDeny: "Not in whitelist",
+    msgTierMismatch: "Legacy: tier mismatch",
+    msgUserDenyModel: "Legacy: user denied model",
+    msgModelWlDeny: "Legacy: model whitelist",
+    msgModelBlDeny: "Legacy: model blacklist",
+
+    // logging
+    loggingTitle: "Logging",
+    loggingDesc: "Server-side print logging (visible in Open WebUI logs). User-dict off redacts emails.",
+    loggingEnabled: "Logging enabled",
+    bouncerLog: "Bouncer decisions",
+    inletLog: "Inlet (requests)",
+    outletLog: "Outlet (responses)",
+    streamLog: "Stream chunks",
+    userDictLog: "Log full user dict (includes email)",
+
+    // toasts / prompts
+    invalidJson: "Invalid JSON: ",
+    configRootError: "Config root must be an object",
+    configLoaded: "Config loaded",
+    clipboardEmpty: "Clipboard empty",
+    copied: "Copied to clipboard",
+    exported: "Exported bouncer_config.json",
+    resetDone: "Reset to defaults",
+    resetConfirm: "Reset to default configuration? Unsaved changes are lost.",
+    pastePrompt: "Paste your config_json here:",
+  },
+  zh: {
+    configEditor: "配置编辑器",
+    import: "⬆ 导入",
+    pasteJson: "⎘ 粘贴 JSON",
+    reset: "↺ 重置",
+    copy: "⧉ 复制",
+    export: "⬇ 导出",
+    liveConfig: "实时 config_json",
+    valid: "有效",
+    switchLang: "English",
+
+    // nav
+    navGeneral: "常规",
+    navAuth: "认证与访问",
+    navModels: "模型组",
+    navUsers: "用户组",
+    navFallback: "降级回退",
+    navBans: "封禁列表",
+    navAds: "广告",
+    navMessages: "消息",
+    navLogging: "日志",
+
+    // general
+    generalTitle: "常规",
+    generalDesc: "控制 Bouncer 所有功能的主开关。",
+    base: "基础",
+    bouncerEnabled: "启用 Bouncer",
+    bouncerEnabledHint: "主开关。关闭 = 放行所有请求。",
+    enforceAdmins: "对管理员生效",
+    enforceAdminsHint: "关闭时，管理员角色用户绕过所有检查。",
+    globalLimitScope: "全局速率限制范围",
+    globalLimitEnabled: "全局计数请求",
+    globalLimitHint: "开启 = 每位用户跨所有模型组共享一个计数器。关闭 = 按模型组分别计数。",
+    globalLimitNote: "影响以下所有速率限制的请求历史分组方式。",
+
+    // auth
+    authTitle: "认证与访问",
+    authDesc: "通过邮件域名、白名单或豁免名单控制访问权限。",
+    emailProviderAuth: "邮件提供商认证",
+    restrictByDomain: "按邮件域名限制",
+    allowedProviders: "允许的提供商",
+    allowedProvidersHint: "邮件域名部分，每行一个",
+    denyMessage: "拒绝消息",
+    whitelist: "白名单",
+    whitelistOnly: "仅列出的邮件可访问",
+    whitelistedEmails: "白名单邮件",
+    exemption: "豁免",
+    exemptionEnabled: "列出的邮件跳过所有检查",
+    exemptEmails: "豁免邮件",
+    exemptNote: "豁免用户绕过认证、白名单、封禁、速率限制和裁剪。",
+
+    // models
+    modelsTitle: "模型组",
+    modelsDesc: "将模型 ID 归组。用户组权限按模型组授予。未归组的模型视为「未分组」（使用每个用户组的默认权限）。",
+    noModelGroups: "暂无模型组。",
+    name: "名称",
+    groupId: "组 ID",
+    groupIdHint: "权限中使用的稳定键",
+    modelIds: "模型 ID",
+    modelIdsHint: "自动匹配提供商 / OpenWebUI 变体",
+    delete: "删除",
+    addModelGroup: "＋ 添加模型组",
+
+    // users
+    usersTitle: "用户组",
+    usersDesc: "按邮件将用户匹配到组（优先级最高者获胜）。邮件列表为空的组为默认兜底组。每个组按模型组设置权限配置。",
+    catchAllDefault: "默认兜底",
+    priority: "优先级",
+    priorityHint: "邮件匹配时优先级更高者优先",
+    memberEmails: "成员邮件",
+    memberEmailsPlaceholder: "留空 = 默认组",
+    memberEmailsHint: "空列表 = 未匹配用户的默认组",
+    permissions: "权限",
+    permissionsHint: "0 = 该限制无上限",
+    modelGroupCol: "模型组",
+    access: "访问",
+    defaultUngrouped: "默认 / 未分组",
+    permNote: "「访问」关闭表示该组无法访问该模型组。默认行适用于未归组的模型。",
+    addUserGroup: "＋ 添加用户组",
+
+    // fallback
+    fallbackTitle: "降级回退",
+    fallbackDesc: "当请求触发速率限制时，静默切换到更廉价的模型，而非拒绝请求。",
+    enableFallback: "速率限制时启用降级",
+    fallbackModelId: "降级模型 ID",
+    notifyUser: "切换时通知用户",
+    notifyMessage: "通知消息",
+
+    // bans
+    bansTitle: "封禁列表",
+    bansDesc: "使用自定义暂停消息封禁特定邮件。",
+    noBans: "暂无封禁配置。",
+    banRule: "封禁规则 #",
+    banMsg: "封禁用户看到的消息",
+    bannedEmails: "被封禁的邮件",
+    addBanRule: "＋ 添加封禁规则",
+
+    // ads
+    adsTitle: "广告",
+    adsDesc: "每次请求时随机发送一条状态消息（在 Open WebUI 中显示为 'AD: …'）。",
+    enableAds: "启用广告消息",
+    adLines: "广告内容",
+    adLinesHint: "每行一条广告，随机选取",
+    adPlaceholder: "了解我们的 Pro 计划！",
+
+    // messages
+    messagesTitle: "消息",
+    messagesDesc: "自定义请求被拒绝时显示的文本。大括号中的占位符在运行时填充。",
+    msgGroupNoPerm: "组访问拒绝",
+    msgRateLimit: "触发速率限制",
+    msgWhitelistDeny: "不在白名单中",
+    msgTierMismatch: "旧版：等级不匹配",
+    msgUserDenyModel: "旧版：用户被拒绝访问模型",
+    msgModelWlDeny: "旧版：模型白名单",
+    msgModelBlDeny: "旧版：模型黑名单",
+
+    // logging
+    loggingTitle: "日志",
+    loggingDesc: "服务器端日志打印（可在 Open WebUI 日志中查看）。关闭用户字典将隐藏邮件。",
+    loggingEnabled: "启用日志",
+    bouncerLog: "Bouncer 决策",
+    inletLog: "入站（请求）",
+    outletLog: "出站（响应）",
+    streamLog: "流式块",
+    userDictLog: "记录完整用户字典（含邮件）",
+
+    // toasts / prompts
+    invalidJson: "无效 JSON：",
+    configRootError: "配置根必须是一个对象",
+    configLoaded: "配置已加载",
+    clipboardEmpty: "剪贴板为空",
+    copied: "已复制到剪贴板",
+    exported: "已导出 bouncer_config.json",
+    resetDone: "已重置为默认值",
+    resetConfirm: "重置为默认配置？未保存的更改将丢失。",
+    pastePrompt: "请在此粘贴您的 config_json：",
+  }
+};
+
+function t(key) { return I18N[lang][key] || key; }
+
+function applyStaticLabels() {
+  document.getElementById("verLabel").textContent = t("configEditor");
+  document.getElementById("langBtn").textContent = t("switchLang");
+  document.getElementById("importBtn").textContent = t("import");
+  document.getElementById("pasteBtn").textContent = t("pasteJson");
+  document.getElementById("resetBtn").textContent = t("reset");
+  document.getElementById("copyBtn").textContent = t("copy");
+  document.getElementById("downloadBtn").textContent = t("export");
+  document.getElementById("previewTitle").textContent = t("liveConfig");
+  document.getElementById("jsonStatus").textContent = t("valid");
+  document.documentElement.lang = lang;
+}
+
+/* ---------- config defaults ---------- */
 const DEFAULT_CONFIG = {
   base: { enabled: true, admin_effective: false },
   auth: { enabled: false, providers: ["outlook.com", "gmail.com", "qq.com"], deny_msg: "Access Denied: Your email provider is not supported." },
@@ -244,14 +542,14 @@ function arrToLines(a) { return Array.isArray(a) ? a.join("\n") : ""; }
 function slug(s) { return String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "group"; }
 
 function toast(msg, kind = "") {
-  const t = $("#toast");
-  t.className = "toast show " + kind;
-  t.textContent = (kind === "ok" ? "✓ " : kind === "err" ? "✕ " : "") + msg;
+  const t2 = $("#toast");
+  t2.className = "toast show " + kind;
+  t2.textContent = (kind === "ok" ? "✓ " : kind === "err" ? "✕ " : "") + msg;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => t.className = "toast " + kind, 2200);
+  toast._t = setTimeout(() => t2.className = "toast " + kind, 2200);
 }
 
-/* ---------- JSONC parse (port of bouncer.py _strip_json_comments) ---------- */
+/* ---------- JSONC parse ---------- */
 function stripJsonComments(raw) {
   if (typeof raw !== "string" || !raw) return raw || "";
   let out = "", i = 0, n = raw.length, inStr = false, esc = false;
@@ -287,7 +585,7 @@ function parseConfig(raw) {
   catch (e) { return JSON.parse(stripJsonComments(raw)); }
 }
 
-/* ---------- merge defaults so partial imports still render ---------- */
+/* ---------- merge defaults ---------- */
 function mergeDefaults(cfg, def) {
   for (const [k, dv] of Object.entries(def)) {
     if (!(k in cfg) || cfg[k] == null) cfg[k] = clone(dv);
@@ -301,23 +599,23 @@ function isObj(x) { return x && typeof x === "object" && !Array.isArray(x); }
    Sections
    ============================================================ */
 const SECTIONS = [
-  { id: "general",  label: "General",       count: () => null },
-  { id: "auth",     label: "Auth & Access", count: () => (config.whitelist.emails.length + config.exemption.emails.length) || null },
-  { id: "models",   label: "Model Groups",  count: () => config.model_groups.length },
-  { id: "users",    label: "User Groups",   count: () => config.user_groups.length },
-  { id: "fallback", label: "Fallback",      count: () => null },
-  { id: "bans",     label: "Ban List",      count: () => config.ban_reasons.length || null },
-  { id: "ads",      label: "Ads",           count: () => config.ads.content.length || null },
-  { id: "messages", label: "Messages",      count: () => null },
-  { id: "logging",  label: "Logging",       count: () => null },
+  { id: "general",  labelKey: "navGeneral",  count: () => null },
+  { id: "auth",     labelKey: "navAuth",     count: () => (config.whitelist.emails.length + config.exemption.emails.length) || null },
+  { id: "models",   labelKey: "navModels",   count: () => config.model_groups.length },
+  { id: "users",    labelKey: "navUsers",    count: () => config.user_groups.length },
+  { id: "fallback", labelKey: "navFallback", count: () => null },
+  { id: "bans",     labelKey: "navBans",     count: () => config.ban_reasons.length || null },
+  { id: "ads",      labelKey: "navAds",      count: () => config.ads.content.length || null },
+  { id: "messages", labelKey: "navMessages", count: () => null },
+  { id: "logging",  labelKey: "navLogging",  count: () => null },
 ];
 
-function bindToggle(obj, key, label, hint) {
+function bindToggle(obj, key, labelKey, hintKey) {
   const input = el("input", { type: "checkbox" });
   input.checked = !!obj[key];
   input.addEventListener("change", () => { obj[key] = input.checked; refresh(); });
-  return el("label", { class: "toggle", title: hint || "" },
-    input, el("span", { class: "switch" }), el("span", { class: "lbl" }, label));
+  return el("label", { class: "toggle", title: hintKey ? t(hintKey) : "" },
+    input, el("span", { class: "switch" }), el("span", { class: "lbl" }, t(labelKey)));
 }
 function bindText(obj, key, opts = {}) {
   const input = el("input", { type: "text", placeholder: opts.placeholder || "" });
@@ -332,7 +630,7 @@ function bindNum(obj, key) {
   return input;
 }
 function bindLines(obj, key, opts = {}) {
-  const ta = el("textarea", { placeholder: opts.placeholder || "one per line", rows: opts.rows || 4 });
+  const ta = el("textarea", { placeholder: opts.placeholder || (lang === "zh" ? "每行一条" : "one per line"), rows: opts.rows || 4 });
   ta.value = arrToLines(obj[key]);
   ta.addEventListener("input", () => { obj[key] = linesToArr(ta.value); queuePreview(); });
   ta.addEventListener("blur", refresh);
@@ -347,23 +645,23 @@ function field(labelText, control, opts = {}) {
 /* ---------- General ---------- */
 function renderGeneral() {
   return [
-    el("h1", { class: "sec-title" }, "General"),
-    el("p", { class: "sec-desc" }, "Master switches that gate everything Bouncer does."),
+    el("h1", { class: "sec-title" }, t("generalTitle")),
+    el("p", { class: "sec-desc" }, t("generalDesc")),
     el("div", { class: "card" },
-      el("h4", {}, "Base"),
+      el("h4", {}, t("base")),
       el("div", { class: "row" },
-        bindToggle(config.base, "enabled", "Bouncer enabled", "Master kill-switch. Off = pass every request through."),
+        bindToggle(config.base, "enabled", "bouncerEnabled", "bouncerEnabledHint"),
       ),
       el("div", { class: "row" },
-        bindToggle(config.base, "admin_effective", "Enforce on admins", "When off, admin-role users bypass all checks."),
+        bindToggle(config.base, "admin_effective", "enforceAdmins", "enforceAdminsHint"),
       )
     ),
     el("div", { class: "card" },
-      el("h4", {}, "Global rate-limit scope"),
+      el("h4", {}, t("globalLimitScope")),
       el("div", { class: "row" },
-        bindToggle(config.global_limit, "enabled", "Count requests globally", "On = one shared counter per user across all model groups. Off = per model group."),
+        bindToggle(config.global_limit, "enabled", "globalLimitEnabled", "globalLimitHint"),
       ),
-      el("div", { class: "muted-note" }, "Affects how request history is bucketed for every rate limit below.")
+      el("div", { class: "muted-note" }, t("globalLimitNote"))
     )
   ];
 }
@@ -371,32 +669,32 @@ function renderGeneral() {
 /* ---------- Auth & Access ---------- */
 function renderAuth() {
   return [
-    el("h1", { class: "sec-title" }, "Auth & Access"),
-    el("p", { class: "sec-desc" }, "Gate access by email domain, an explicit whitelist, or exempt trusted users from every check."),
+    el("h1", { class: "sec-title" }, t("authTitle")),
+    el("p", { class: "sec-desc" }, t("authDesc")),
     el("div", { class: "card" },
-      el("h4", {}, "Email-provider auth"),
-      el("div", { class: "row" }, bindToggle(config.auth, "enabled", "Restrict by email domain")),
+      el("h4", {}, t("emailProviderAuth")),
+      el("div", { class: "row" }, bindToggle(config.auth, "enabled", "restrictByDomain")),
       el("div", { class: "row" },
-        field("Allowed providers", bindLines(config.auth, "providers", { placeholder: "gmail.com\noutlook.com", rows: 4 }), { full: true, hint: "domain part of the email, one per line" })
+        field(t("allowedProviders"), bindLines(config.auth, "providers", { placeholder: "gmail.com\noutlook.com", rows: 4 }), { full: true, hint: t("allowedProvidersHint") })
       ),
       el("div", { class: "row" },
-        field("Deny message", bindText(config.auth, "deny_msg"), { full: true })
+        field(t("denyMessage"), bindText(config.auth, "deny_msg"), { full: true })
       )
     ),
     el("div", { class: "card" },
-      el("h4", {}, "Whitelist"),
-      el("div", { class: "row" }, bindToggle(config.whitelist, "enabled", "Only listed emails may access anything")),
+      el("h4", {}, t("whitelist")),
+      el("div", { class: "row" }, bindToggle(config.whitelist, "enabled", "whitelistOnly")),
       el("div", { class: "row" },
-        field("Whitelisted emails", bindLines(config.whitelist, "emails", { placeholder: "alice@example.com", rows: 5 }), { full: true })
+        field(t("whitelistedEmails"), bindLines(config.whitelist, "emails", { placeholder: "alice@example.com", rows: 5 }), { full: true })
       )
     ),
     el("div", { class: "card" },
-      el("h4", {}, "Exemption"),
-      el("div", { class: "row" }, bindToggle(config.exemption, "enabled", "Listed emails skip ALL checks")),
+      el("h4", {}, t("exemption")),
+      el("div", { class: "row" }, bindToggle(config.exemption, "enabled", "exemptionEnabled")),
       el("div", { class: "row" },
-        field("Exempt emails", bindLines(config.exemption, "emails", { placeholder: "trusted@example.com", rows: 5 }), { full: true })
+        field(t("exemptEmails"), bindLines(config.exemption, "emails", { placeholder: "trusted@example.com", rows: 5 }), { full: true })
       ),
-      el("div", { class: "muted-note" }, "Exempt users bypass auth, whitelist, bans, rate limits and clipping.")
+      el("div", { class: "muted-note" }, t("exemptNote"))
     )
   ];
 }
@@ -405,11 +703,11 @@ function renderAuth() {
 function renderModels() {
   const wrap = el("div", {});
   wrap.append(
-    el("h1", { class: "sec-title" }, "Model Groups"),
-    el("p", { class: "sec-desc" }, "Bucket model IDs together. User-group permissions are granted per model group. A model in no group is treated as ‘ungrouped’ (uses each user group's default permissions)."),
+    el("h1", { class: "sec-title" }, t("modelsTitle")),
+    el("p", { class: "sec-desc" }, t("modelsDesc")),
   );
   if (!config.model_groups.length) {
-    wrap.append(el("div", { class: "empty" }, "No model groups yet."));
+    wrap.append(el("div", { class: "empty" }, t("noModelGroups")));
   }
   config.model_groups.forEach((mg, idx) => {
     const card = el("div", { class: "card group-card" });
@@ -418,25 +716,25 @@ function renderModels() {
         el("div", { style: "display:flex;align-items:center;gap:10px;flex:1" },
           el("span", { class: "gtitle" }, mg.name || "(unnamed)"),
           el("span", { class: "pill" }, "id: " + (mg.id || "—")),
-          el("span", { class: "pill" }, mg.models.length + " model" + (mg.models.length === 1 ? "" : "s"))
+          el("span", { class: "pill" }, mg.models.length + (lang === "zh" ? " 个模型" : " model" + (mg.models.length === 1 ? "" : "s")))
         ),
-        el("button", { class: "danger sm", onclick: () => { config.model_groups.splice(idx, 1); cleanupPermissions(); render(); } }, "Delete")
+        el("button", { class: "danger sm", onclick: () => { config.model_groups.splice(idx, 1); cleanupPermissions(); render(); } }, t("delete"))
       ),
       el("div", { class: "row" },
-        field("Name", (() => { const i = bindText(mg, "name"); i.addEventListener("blur", render); return i; })()),
-        field("Group ID", (() => {
+        field(t("name"), (() => { const i = bindText(mg, "name"); i.addEventListener("blur", render); return i; })()),
+        field(t("groupId"), (() => {
           const i = bindText(mg, "id");
           i.addEventListener("blur", () => { mg.id = slug(mg.id || mg.name); cleanupPermissions(); render(); });
           return i;
-        })(), { hint: "stable key used in permissions" })
+        })(), { hint: t("groupIdHint") })
       ),
       el("div", { class: "row" },
-        field("Model IDs", bindLines(mg, "models", { placeholder: "gpt-4o\nllama3:8b\nopenai/gpt-4o-mini", rows: 5 }), { full: true, hint: "matches provider / OpenWebUI variants automatically" })
+        field(t("modelIds"), bindLines(mg, "models", { placeholder: "gpt-4o\nllama3:8b\nopenai/gpt-4o-mini", rows: 5 }), { full: true, hint: t("modelIdsHint") })
       )
     );
     wrap.append(card);
   });
-  wrap.append(el("button", { class: "primary", onclick: addModelGroup }, "＋ Add model group"));
+  wrap.append(el("button", { class: "primary", onclick: addModelGroup }, t("addModelGroup")));
   return wrap;
 }
 function addModelGroup() {
@@ -447,12 +745,12 @@ function addModelGroup() {
   render();
 }
 
-/* ---------- User Groups (with permission matrix) ---------- */
+/* ---------- User Groups ---------- */
 function renderUsers() {
   const wrap = el("div", {});
   wrap.append(
-    el("h1", { class: "sec-title" }, "User Groups"),
-    el("p", { class: "sec-desc" }, "Match users by email to a group (highest priority wins). A group with an empty email list is the catch-all default. Each group sets a permission profile per model group."),
+    el("h1", { class: "sec-title" }, t("usersTitle")),
+    el("p", { class: "sec-desc" }, t("usersDesc")),
   );
   config.user_groups.forEach((ug, idx) => {
     ug.default_permissions = ug.default_permissions || clone(DEFAULT_CONFIG.user_groups[0].default_permissions);
@@ -464,25 +762,25 @@ function renderUsers() {
         el("div", { style: "display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap" },
           el("span", { class: "gtitle" }, ug.name || "(unnamed)"),
           el("span", { class: "pill" }, "id: " + (ug.id || "—")),
-          el("span", { class: "pill" }, "priority " + (ug.priority ?? 0)),
-          isCatchAll ? el("span", { class: "pill", style: "border-color:var(--accent);color:var(--accent)" }, "catch-all default") : null
+          el("span", { class: "pill" }, (lang === "zh" ? "优先级 " : "priority ") + (ug.priority ?? 0)),
+          isCatchAll ? el("span", { class: "pill", style: "border-color:var(--accent);color:var(--accent)" }, t("catchAllDefault")) : null
         ),
-        el("button", { class: "danger sm", onclick: () => { config.user_groups.splice(idx, 1); render(); } }, "Delete")
+        el("button", { class: "danger sm", onclick: () => { config.user_groups.splice(idx, 1); render(); } }, t("delete"))
       ),
       el("div", { class: "row" },
-        field("Name", (() => { const i = bindText(ug, "name"); i.addEventListener("blur", render); return i; })()),
-        field("Group ID", (() => { const i = bindText(ug, "id"); i.addEventListener("blur", () => { ug.id = slug(ug.id || ug.name); render(); }); return i; })()),
-        field("Priority", (() => { const i = bindNum(ug, "priority"); i.addEventListener("blur", render); return i; })(), { hint: "higher wins on email match" })
+        field(t("name"), (() => { const i = bindText(ug, "name"); i.addEventListener("blur", render); return i; })()),
+        field(t("groupId"), (() => { const i = bindText(ug, "id"); i.addEventListener("blur", () => { ug.id = slug(ug.id || ug.name); render(); }); return i; })()),
+        field(t("priority"), (() => { const i = bindNum(ug, "priority"); i.addEventListener("blur", render); return i; })(), { hint: t("priorityHint") })
       ),
       el("div", { class: "row" },
-        field("Member emails", (() => { const t = bindLines(ug, "emails", { placeholder: "leave empty = default group", rows: 4 }); return t; })(),
-          { full: true, hint: "empty list = catch-all for everyone unmatched" })
+        field(t("memberEmails"), (() => { const ta = bindLines(ug, "emails", { placeholder: t("memberEmailsPlaceholder"), rows: 4 }); return ta; })(),
+          { full: true, hint: t("memberEmailsHint") })
       ),
       permMatrix(ug)
     );
     wrap.append(card);
   });
-  wrap.append(el("button", { class: "primary", onclick: addUserGroup }, "＋ Add user group"));
+  wrap.append(el("button", { class: "primary", onclick: addUserGroup }, t("addUserGroup")));
   return wrap;
 }
 function addUserGroup() {
@@ -505,22 +803,20 @@ function cleanupPermissions() {
 }
 function permMatrix(ug) {
   const box = el("div", {});
-  box.append(el("label", { style: "display:block;margin:6px 0 4px" }, "Permissions",
-    el("span", { class: "hint" }, " · 0 = unlimited for that limit")));
+  box.append(el("label", { style: "display:block;margin:6px 0 4px" }, t("permissions"),
+    el("span", { class: "hint" }, " · " + t("permissionsHint"))));
   const grid = el("div", { class: "perm-grid" });
   grid.append(el("div", { class: "perm-row head" },
-    el("div", {}, "Model group"), el("div", {}, "Access"),
+    el("div", {}, t("modelGroupCol")), el("div", {}, t("access")),
     ...PERM_KEYS.map(k => el("div", {}, PERM_LABELS[k]))
   ));
-  // default row
-  grid.append(permRow("Default / ungrouped", "default_permissions", ug.default_permissions, ug, true));
-  // per model group
+  grid.append(permRow(t("defaultUngrouped"), "default_permissions", ug.default_permissions, ug, true));
   config.model_groups.forEach(mg => {
     const p = ug.permissions[mg.id] || (ug.permissions[mg.id] = { enabled: false, rpm: 0, rph: 0, win_time: 0, win_limit: 0, clip: 0 });
     grid.append(permRow(mg.name, mg.id, p, ug, false));
   });
   box.append(grid);
-  box.append(el("div", { class: "muted-note" }, "‘Access’ off denies the group access to that model group. The Default row applies to models in no group."));
+  box.append(el("div", { class: "muted-note" }, t("permNote")));
   return box;
 }
 function permRow(name, idLabel, perm, ug, isDefault) {
@@ -544,16 +840,16 @@ function permRow(name, idLabel, perm, ug, isDefault) {
 /* ---------- Fallback ---------- */
 function renderFallback() {
   return [
-    el("h1", { class: "sec-title" }, "Fallback"),
-    el("p", { class: "sec-desc" }, "Instead of denying a rate-limited request, silently switch it to a cheaper model."),
+    el("h1", { class: "sec-title" }, t("fallbackTitle")),
+    el("p", { class: "sec-desc" }, t("fallbackDesc")),
     el("div", { class: "card" },
-      el("div", { class: "row" }, bindToggle(config.fallback, "enabled", "Enable fallback on rate-limit")),
+      el("div", { class: "row" }, bindToggle(config.fallback, "enabled", "enableFallback")),
       el("div", { class: "row" },
-        field("Fallback model ID", bindText(config.fallback, "model", { placeholder: "qwen2:0.5b" }))
+        field(t("fallbackModelId"), bindText(config.fallback, "model", { placeholder: "qwen2:0.5b" }))
       ),
-      el("div", { class: "row" }, bindToggle(config.fallback, "notify", "Notify user when switched")),
+      el("div", { class: "row" }, bindToggle(config.fallback, "notify", "notifyUser")),
       el("div", { class: "row" },
-        field("Notify message", bindText(config.fallback, "notify_msg"), { full: true })
+        field(t("notifyMessage"), bindText(config.fallback, "notify_msg"), { full: true })
       )
     )
   ];
@@ -563,35 +859,35 @@ function renderFallback() {
 function renderBans() {
   const wrap = el("div", {});
   wrap.append(
-    el("h1", { class: "sec-title" }, "Ban List"),
-    el("p", { class: "sec-desc" }, "Block specific emails with a custom suspension message.")
+    el("h1", { class: "sec-title" }, t("bansTitle")),
+    el("p", { class: "sec-desc" }, t("bansDesc"))
   );
-  if (!config.ban_reasons.length) wrap.append(el("div", { class: "empty" }, "No bans configured."));
+  if (!config.ban_reasons.length) wrap.append(el("div", { class: "empty" }, t("noBans")));
   config.ban_reasons.forEach((b, idx) => {
     b.emails = b.emails || [];
     const card = el("div", { class: "card group-card" });
     card.append(
       el("div", { class: "group-head" },
-        el("span", { class: "gtitle" }, "Ban rule #" + (idx + 1)),
-        el("button", { class: "danger sm", onclick: () => { config.ban_reasons.splice(idx, 1); render(); } }, "Delete")
+        el("span", { class: "gtitle" }, t("banRule") + (idx + 1)),
+        el("button", { class: "danger sm", onclick: () => { config.ban_reasons.splice(idx, 1); render(); } }, t("delete"))
       ),
-      el("div", { class: "row" }, field("Message shown to banned user", bindText(b, "msg", { placeholder: "Account Suspended" }), { full: true })),
-      el("div", { class: "row" }, field("Banned emails", bindLines(b, "emails", { rows: 3 }), { full: true }))
+      el("div", { class: "row" }, field(t("banMsg"), bindText(b, "msg", { placeholder: "Account Suspended" }), { full: true })),
+      el("div", { class: "row" }, field(t("bannedEmails"), bindLines(b, "emails", { rows: 3 }), { full: true }))
     );
     wrap.append(card);
   });
-  wrap.append(el("button", { class: "primary", onclick: () => { config.ban_reasons.push({ emails: [], msg: "Account Suspended" }); render(); } }, "＋ Add ban rule"));
+  wrap.append(el("button", { class: "primary", onclick: () => { config.ban_reasons.push({ emails: [], msg: "Account Suspended" }); render(); } }, t("addBanRule")));
   return wrap;
 }
 
 /* ---------- Ads ---------- */
 function renderAds() {
   return [
-    el("h1", { class: "sec-title" }, "Ads"),
-    el("p", { class: "sec-desc" }, "Emit a random status message with each request (shown as ‘AD: …’ in Open WebUI)."),
+    el("h1", { class: "sec-title" }, t("adsTitle")),
+    el("p", { class: "sec-desc" }, t("adsDesc")),
     el("div", { class: "card" },
-      el("div", { class: "row" }, bindToggle(config.ads, "enabled", "Enable ad messages")),
-      el("div", { class: "row" }, field("Ad lines", bindLines(config.ads, "content", { placeholder: "Check out our Pro plan!", rows: 6 }), { full: true, hint: "one ad per line, picked at random" }))
+      el("div", { class: "row" }, bindToggle(config.ads, "enabled", "enableAds")),
+      el("div", { class: "row" }, field(t("adLines"), bindLines(config.ads, "content", { placeholder: t("adPlaceholder"), rows: 6 }), { full: true, hint: t("adLinesHint") }))
     )
   ];
 }
@@ -600,22 +896,22 @@ function renderAds() {
 function renderMessages() {
   const cs = config.custom_strings;
   const defs = [
-    ["group_no_permission", "Group access denied", "{u_group}, {m_group}"],
-    ["rate_limit_deny", "Rate limit hit", "{reason}"],
-    ["whitelist_deny", "Not in whitelist", "—"],
-    ["tier_mismatch", "Legacy: tier mismatch", "{u_tier}, {m_tier}"],
-    ["user_deny_model", "Legacy: user denied model", "{u_tier}, {model_id}"],
-    ["model_wl_deny", "Legacy: model whitelist", "{m_tier}"],
-    ["model_bl_deny", "Legacy: model blacklist", "{m_tier}"],
+    ["group_no_permission", "msgGroupNoPerm",   "{u_group}, {m_group}"],
+    ["rate_limit_deny",     "msgRateLimit",      "{reason}"],
+    ["whitelist_deny",      "msgWhitelistDeny",  "—"],
+    ["tier_mismatch",       "msgTierMismatch",   "{u_tier}, {m_tier}"],
+    ["user_deny_model",     "msgUserDenyModel",  "{u_tier}, {model_id}"],
+    ["model_wl_deny",       "msgModelWlDeny",    "{m_tier}"],
+    ["model_bl_deny",       "msgModelBlDeny",    "{m_tier}"],
   ];
   const card = el("div", { class: "card" });
-  defs.forEach(([key, label, vars]) => {
+  defs.forEach(([key, labelKey, vars]) => {
     card.append(el("div", { class: "row" },
-      field(label, bindText(cs, key), { full: true, hint: "vars: " + vars })));
+      field(t(labelKey), bindText(cs, key), { full: true, hint: "vars: " + vars })));
   });
   return [
-    el("h1", { class: "sec-title" }, "Messages"),
-    el("p", { class: "sec-desc" }, "Customize the text shown when a request is denied. Placeholders in braces are filled in at runtime."),
+    el("h1", { class: "sec-title" }, t("messagesTitle")),
+    el("p", { class: "sec-desc" }, t("messagesDesc")),
     card
   ];
 }
@@ -624,15 +920,15 @@ function renderMessages() {
 function renderLogging() {
   const L = config.logging;
   return [
-    el("h1", { class: "sec-title" }, "Logging"),
-    el("p", { class: "sec-desc" }, "Server-side print logging (visible in Open WebUI logs). User-dict off redacts emails."),
+    el("h1", { class: "sec-title" }, t("loggingTitle")),
+    el("p", { class: "sec-desc" }, t("loggingDesc")),
     el("div", { class: "card" },
-      el("div", { class: "row" }, bindToggle(L, "enabled", "Logging enabled")),
-      el("div", { class: "row" }, bindToggle(L, "bouncer_log", "Bouncer decisions")),
-      el("div", { class: "row" }, bindToggle(L, "inlet", "Inlet (requests)")),
-      el("div", { class: "row" }, bindToggle(L, "outlet", "Outlet (responses)")),
-      el("div", { class: "row" }, bindToggle(L, "stream", "Stream chunks")),
-      el("div", { class: "row" }, bindToggle(L, "user_dict", "Log full user dict (includes email)"))
+      el("div", { class: "row" }, bindToggle(L, "enabled", "loggingEnabled")),
+      el("div", { class: "row" }, bindToggle(L, "bouncer_log", "bouncerLog")),
+      el("div", { class: "row" }, bindToggle(L, "inlet", "inletLog")),
+      el("div", { class: "row" }, bindToggle(L, "outlet", "outletLog")),
+      el("div", { class: "row" }, bindToggle(L, "stream", "streamLog")),
+      el("div", { class: "row" }, bindToggle(L, "user_dict", "userDictLog"))
     )
   ];
 }
@@ -651,12 +947,13 @@ function renderNav() {
   SECTIONS.forEach(s => {
     const c = s.count();
     const a = el("a", { class: activeSection === s.id ? "active" : "", onclick: () => { activeSection = s.id; render(); } },
-      el("span", {}, s.label),
+      el("span", {}, t(s.labelKey)),
       c != null ? el("span", { class: "badge" }, String(c)) : el("span", {}));
     nav.append(a);
   });
 }
 function render() {
+  applyStaticLabels();
   renderNav();
   const content = $("#content");
   content.innerHTML = "";
@@ -672,11 +969,10 @@ function queuePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(
 function updatePreview() {
   const json = buildJson();
   $("#jsonOut").textContent = json;
-  $("#jsonStatus").textContent = "valid";
+  $("#jsonStatus").textContent = t("valid");
   $("#jsonStatus").style.color = "var(--green)";
 }
 function buildJson() {
-  // Export in a stable, readable key order; pass through any unknown/legacy keys.
   const ordered = {};
   const order = ["base", "auth", "whitelist", "exemption", "priority", "global_limit",
     "model_groups", "user_groups", "ban_reasons", "fallback", "logging", "ads", "custom_strings"];
@@ -692,10 +988,9 @@ function refresh() { render(); }
 function loadConfig(raw) {
   let parsed;
   try { parsed = parseConfig(raw); }
-  catch (e) { toast("Invalid JSON: " + e.message, "err"); return false; }
-  if (!isObj(parsed)) { toast("Config root must be an object", "err"); return false; }
+  catch (e) { toast(t("invalidJson") + e.message, "err"); return false; }
+  if (!isObj(parsed)) { toast(t("configRootError"), "err"); return false; }
   config = mergeDefaults(parsed, DEFAULT_CONFIG);
-  // normalise group shapes
   config.model_groups = (config.model_groups || []).map(g => ({ id: slug(g.id || g.name || "group"), name: g.name || g.id || "Group", models: Array.isArray(g.models) ? g.models : [] }));
   config.user_groups = (config.user_groups || []).map(g => ({
     ...g,
@@ -706,9 +1001,16 @@ function loadConfig(raw) {
   }));
   cleanupPermissions();
   render();
-  toast("Config loaded", "ok");
+  toast(t("configLoaded"), "ok");
   return true;
 }
+
+/* ---------- wire up static buttons ---------- */
+$("#langBtn").addEventListener("click", () => {
+  lang = lang === "en" ? "zh" : "en";
+  localStorage.setItem("bouncer_lang", lang);
+  render();
+});
 
 $("#fileInput").addEventListener("change", e => {
   const f = e.target.files[0]; if (!f) return;
@@ -718,23 +1020,25 @@ $("#fileInput").addEventListener("change", e => {
   e.target.value = "";
 });
 
+$("#importBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+
 $("#pasteBtn").addEventListener("click", async () => {
   try {
     const txt = await navigator.clipboard.readText();
-    if (!txt) { toast("Clipboard empty", "err"); return; }
+    if (!txt) { toast(t("clipboardEmpty"), "err"); return; }
     loadConfig(txt);
   } catch (e) {
-    const txt = prompt("Paste your config_json here:");
+    const txt = prompt(t("pastePrompt"));
     if (txt) loadConfig(txt);
   }
 });
 
 $("#copyBtn").addEventListener("click", async () => {
   const json = buildJson();
-  try { await navigator.clipboard.writeText(json); toast("Copied to clipboard", "ok"); }
+  try { await navigator.clipboard.writeText(json); toast(t("copied"), "ok"); }
   catch (e) {
     const ta = el("textarea", {}); ta.value = json; document.body.append(ta); ta.select();
-    document.execCommand("copy"); ta.remove(); toast("Copied to clipboard", "ok");
+    document.execCommand("copy"); ta.remove(); toast(t("copied"), "ok");
   }
 });
 
@@ -744,12 +1048,12 @@ $("#downloadBtn").addEventListener("click", () => {
   const a = el("a", { href: url, download: "bouncer_config.json" });
   document.body.append(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
-  toast("Exported bouncer_config.json", "ok");
+  toast(t("exported"), "ok");
 });
 
 $("#resetBtn").addEventListener("click", () => {
-  if (confirm("Reset to default configuration? Unsaved changes are lost.")) {
-    config = clone(DEFAULT_CONFIG); activeSection = "general"; render(); toast("Reset to defaults", "ok");
+  if (confirm(t("resetConfirm"))) {
+    config = clone(DEFAULT_CONFIG); activeSection = "general"; render(); toast(t("resetDone"), "ok");
   }
 });
 
