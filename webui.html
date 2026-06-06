@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bouncer · Config Editor</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e6e8ec;
+    --muted: #9aa3b2;
+    --accent: #5b8cff;
+    --accent-soft: #2a3a66;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 20px;
+    background: rgba(15,17,21,.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-weight: 700; font-size: 16px; letter-spacing: .3px; display:flex; align-items:center; gap:8px;}
+  .logo .dot { width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);}
+  .ver { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .spacer { flex: 1; }
+  .layout { display: grid; grid-template-columns: 220px 1fr 420px; min-height: calc(100vh - 53px); }
+  nav.side {
+    border-right: 1px solid var(--border);
+    padding: 14px 10px;
+    position: sticky; top: 53px; align-self: start;
+    height: calc(100vh - 53px); overflow-y: auto;
+  }
+  nav.side a {
+    display: flex; align-items:center; justify-content: space-between;
+    padding: 8px 12px; margin-bottom: 2px;
+    border-radius: 8px; color: var(--muted);
+    text-decoration: none; cursor: pointer; font-weight: 500;
+    transition: background .12s, color .12s;
+  }
+  nav.side a:hover { background: var(--panel); color: var(--text); }
+  nav.side a.active { background: var(--accent-soft); color: #fff; }
+  nav.side a .badge {
+    font-size: 11px; background: var(--panel-2); color: var(--muted);
+    padding: 1px 7px; border-radius: 20px; min-width: 20px; text-align:center;
+  }
+  nav.side a.active .badge { background: var(--accent); color:#fff; }
+  main.content { padding: 22px 26px; overflow-y: auto; }
+  aside.preview {
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    position: sticky; top: 53px; align-self: start;
+    height: calc(100vh - 53px);
+    display: flex; flex-direction: column;
+  }
+  aside.preview .ph {
+    display:flex; align-items:center; gap:8px;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  aside.preview .ph h3 { margin:0; font-size: 13px; text-transform: uppercase; letter-spacing:.6px; color: var(--muted);}
+  aside.preview pre {
+    margin: 0; flex:1; overflow:auto; padding: 14px 16px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.55;
+    white-space: pre; color: #cdd3df;
+  }
+  .section { display: none; }
+  .section.active { display: block; animation: fade .15s ease; }
+  @keyframes fade { from { opacity:0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+  h1.sec-title { font-size: 20px; margin: 0 0 4px; }
+  p.sec-desc { color: var(--muted); margin: 0 0 20px; max-width: 640px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px; margin-bottom: 16px;
+  }
+  .card h4 { margin: 0 0 14px; font-size: 15px; display:flex; align-items:center; gap:8px;}
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+  .field.full { flex-basis: 100%; }
+  label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing:.2px; }
+  label .hint { font-weight: 400; opacity:.8; }
+  input[type=text], input[type=number], textarea, select {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 11px; font-size: 13px; font-family: inherit;
+    width: 100%; outline: none; transition: border-color .12s, box-shadow .12s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,.15); }
+  textarea { resize: vertical; min-height: 70px; font-family: var(--mono); font-size: 12.5px; }
+  .toggle { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; }
+  .toggle input { display: none; }
+  .switch { width: 38px; height: 22px; background: var(--panel-2); border:1px solid var(--border); border-radius: 20px; position: relative; transition: background .15s; flex:none;}
+  .switch::after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--muted); transition: transform .15s, background .15s;}
+  .toggle input:checked + .switch { background: var(--accent-soft); border-color: var(--accent);}
+  .toggle input:checked + .switch::after { transform: translateX(16px); background: var(--accent);}
+  .toggle .lbl { font-size: 13px; font-weight: 500; }
+  button {
+    font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+    border-radius: 8px; padding: 8px 14px; transition: background .12s, border-color .12s, transform .05s;
+  }
+  button:hover { background: #262b36; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #4f7df0; }
+  button.ghost { background: transparent; }
+  button.danger { color: var(--red); border-color: #3a2730; }
+  button.danger:hover { background: #2a1c22; }
+  button.sm { padding: 5px 10px; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .group-card { border-left: 3px solid var(--accent); }
+  .group-head { display:flex; align-items:center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .group-head .gtitle { font-weight: 700; font-size: 15px; }
+  .pill { display:inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; background: var(--panel-2); color: var(--muted); border:1px solid var(--border);}
+  .perm-grid { border:1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 6px;}
+  .perm-row { display: grid; grid-template-columns: 1.4fr 70px repeat(5, 1fr); gap: 0; align-items:center; border-bottom: 1px solid var(--border);}
+  .perm-row:last-child { border-bottom: none; }
+  .perm-row.head { background: var(--panel-2); font-size: 11px; color: var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.3px;}
+  .perm-row > div { padding: 7px 8px; }
+  .perm-row .pname { font-weight: 600; font-size: 13px; }
+  .perm-row .pname small { display:block; color: var(--muted); font-weight:400; font-family: var(--mono); font-size: 11px;}
+  .perm-row input[type=number] { padding: 5px 7px; font-size: 12px; }
+  .perm-row.disabled input[type=number] { opacity: .35; pointer-events: none; }
+  .muted-note { color: var(--muted); font-size: 12px; margin-top: 8px;}
+  .empty { color: var(--muted); font-style: italic; padding: 16px; text-align:center; border: 1px dashed var(--border); border-radius: 8px;}
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 11px 18px; border-radius: 10px; font-weight: 500; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    transition: transform .25s cubic-bezier(.2,.8,.2,1); z-index: 100; display:flex; align-items:center; gap:9px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.ok { border-color: var(--green); }
+  .toast.err { border-color: var(--red); }
+  .file-input { display: none; }
+  .json-bad { color: var(--red); }
+  details.help { margin-top: 10px; }
+  details.help summary { cursor: pointer; color: var(--accent); font-size: 12px; font-weight:600; }
+  details.help div { color: var(--muted); font-size: 12.5px; padding: 8px 0 0; }
+  code.k { font-family: var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 200px 1fr; } aside.preview { display:none; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo"><span class="dot"></span>Bouncer <span class="ver" id="verLabel">Config Editor</span></div>
+  <div class="spacer"></div>
+  <div class="btn-row">
+    <button class="ghost" onclick="document.getElementById('fileInput').click()">⬆ Import</button>
+    <button class="ghost" id="pasteBtn">⎘ Paste JSON</button>
+    <button class="ghost" id="resetBtn">↺ Reset</button>
+    <button class="ghost" id="copyBtn">⧉ Copy</button>
+    <button class="primary" id="downloadBtn">⬇ Export</button>
+  </div>
+  <input type="file" id="fileInput" class="file-input" accept=".json,.jsonc,.txt">
+</header>
+
+<div class="layout">
+  <nav class="side" id="nav"></nav>
+  <main class="content" id="content"></main>
+  <aside class="preview">
+    <div class="ph">
+      <h3>Live config_json</h3>
+      <div class="spacer" style="flex:1"></div>
+      <span id="jsonStatus" class="pill">valid</span>
+    </div>
+    <pre id="jsonOut"></pre>
+  </aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Bouncer Config Editor — single-file, no dependencies.
+   Edits the JSON that goes into the Filter's `config_json` valve.
+   ============================================================ */
+
+const DEFAULT_CONFIG = {
+  base: { enabled: true, admin_effective: false },
+  auth: { enabled: false, providers: ["outlook.com", "gmail.com", "qq.com"], deny_msg: "Access Denied: Your email provider is not supported." },
+  whitelist: { enabled: false, emails: [] },
+  exemption: { enabled: false, emails: [] },
+  priority: { user_priority: false },
+  global_limit: { enabled: false },
+  model_groups: [ { id: "default", name: "Default Models", models: [] } ],
+  user_groups: [ {
+    id: "default", name: "Default Users", priority: 0, emails: [],
+    default_permissions: { enabled: false, rpm: 0, rph: 0, win_time: 0, win_limit: 0, clip: 0 },
+    permissions: {}
+  } ],
+  ban_reasons: [],
+  fallback: { enabled: false, model: "qwen2:0.5b", notify: true, notify_msg: "Rate limit exceeded. Switched to fallback model." },
+  logging: { enabled: true, bouncer_log: true, inlet: false, outlet: false, stream: false, user_dict: false },
+  ads: { enabled: false, content: [] },
+  custom_strings: {
+    whitelist_deny: "Access Denied: Not in whitelist.",
+    tier_mismatch: "Tier Mismatch. User Tier {u_tier} cannot access Model Tier {m_tier}",
+    user_deny_model: "Tier {u_tier} users cannot use model {model_id}",
+    model_wl_deny: "Access Denied to Tier {m_tier} Model (Whitelist)",
+    model_bl_deny: "Access Denied to Tier {m_tier} Model (Blacklist)",
+    rate_limit_deny: "Rate Limit Exceeded: {reason}",
+    group_no_permission: "Access Denied: User group '{u_group}' cannot access model group '{m_group}'"
+  }
+};
+
+const PERM_KEYS = ["rpm", "rph", "win_time", "win_limit", "clip"];
+const PERM_LABELS = { rpm: "RPM", rph: "RPH", win_time: "Win min", win_limit: "Win max", clip: "Clip" };
+
+let config = clone(DEFAULT_CONFIG);
+let activeSection = "general";
+
+/* ---------- utils ---------- */
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function $(s, r = document) { return r.querySelector(s); }
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k === "html") e.innerHTML = v;
+    else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) { if (kid == null) continue; e.append(kid.nodeType ? kid : document.createTextNode(kid)); }
+  return e;
+}
+function linesToArr(s) { return String(s).split("\n").map(x => x.trim()).filter(Boolean); }
+function arrToLines(a) { return Array.isArray(a) ? a.join("\n") : ""; }
+function slug(s) { return String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "group"; }
+
+function toast(msg, kind = "") {
+  const t = $("#toast");
+  t.className = "toast show " + kind;
+  t.textContent = (kind === "ok" ? "✓ " : kind === "err" ? "✕ " : "") + msg;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.className = "toast " + kind, 2200);
+}
+
+/* ---------- JSONC parse (port of bouncer.py _strip_json_comments) ---------- */
+function stripJsonComments(raw) {
+  if (typeof raw !== "string" || !raw) return raw || "";
+  let out = "", i = 0, n = raw.length, inStr = false, esc = false;
+  while (i < n) {
+    const ch = raw[i];
+    if (inStr) {
+      out += ch;
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      i++; continue;
+    }
+    if (ch === '"') { inStr = true; out += ch; i++; continue; }
+    if (ch === "/" && raw[i + 1] === "/") { i += 2; while (i < n && ch_nl(raw[i]) === false) i++; continue; }
+    if (ch === "/" && raw[i + 1] === "*") {
+      i += 2;
+      while (i < n) {
+        if (ch_nl(raw[i])) out += raw[i];
+        if (raw[i] === "*" && raw[i + 1] === "/") { i += 2; break; }
+        i++;
+      }
+      continue;
+    }
+    if (ch === "#") { i++; while (i < n && ch_nl(raw[i]) === false) i++; continue; }
+    out += ch; i++;
+  }
+  return out;
+  function ch_nl(c) { return c === "\n" || c === "\r"; }
+}
+function parseConfig(raw) {
+  raw = String(raw).replace(/^﻿/, "");
+  try { return JSON.parse(raw); }
+  catch (e) { return JSON.parse(stripJsonComments(raw)); }
+}
+
+/* ---------- merge defaults so partial imports still render ---------- */
+function mergeDefaults(cfg, def) {
+  for (const [k, dv] of Object.entries(def)) {
+    if (!(k in cfg) || cfg[k] == null) cfg[k] = clone(dv);
+    else if (isObj(cfg[k]) && isObj(dv)) mergeDefaults(cfg[k], dv);
+  }
+  return cfg;
+}
+function isObj(x) { return x && typeof x === "object" && !Array.isArray(x); }
+
+/* ============================================================
+   Sections
+   ============================================================ */
+const SECTIONS = [
+  { id: "general",  label: "General",       count: () => null },
+  { id: "auth",     label: "Auth & Access", count: () => (config.whitelist.emails.length + config.exemption.emails.length) || null },
+  { id: "models",   label: "Model Groups",  count: () => config.model_groups.length },
+  { id: "users",    label: "User Groups",   count: () => config.user_groups.length },
+  { id: "fallback", label: "Fallback",      count: () => null },
+  { id: "bans",     label: "Ban List",      count: () => config.ban_reasons.length || null },
+  { id: "ads",      label: "Ads",           count: () => config.ads.content.length || null },
+  { id: "messages", label: "Messages",      count: () => null },
+  { id: "logging",  label: "Logging",       count: () => null },
+];
+
+function bindToggle(obj, key, label, hint) {
+  const input = el("input", { type: "checkbox" });
+  input.checked = !!obj[key];
+  input.addEventListener("change", () => { obj[key] = input.checked; refresh(); });
+  return el("label", { class: "toggle", title: hint || "" },
+    input, el("span", { class: "switch" }), el("span", { class: "lbl" }, label));
+}
+function bindText(obj, key, opts = {}) {
+  const input = el("input", { type: "text", placeholder: opts.placeholder || "" });
+  input.value = obj[key] ?? "";
+  input.addEventListener("input", () => { obj[key] = input.value; queuePreview(); });
+  return input;
+}
+function bindNum(obj, key) {
+  const input = el("input", { type: "number", min: "0" });
+  input.value = obj[key] ?? 0;
+  input.addEventListener("input", () => { obj[key] = Math.max(0, parseInt(input.value || "0", 10) || 0); queuePreview(); });
+  return input;
+}
+function bindLines(obj, key, opts = {}) {
+  const ta = el("textarea", { placeholder: opts.placeholder || "one per line", rows: opts.rows || 4 });
+  ta.value = arrToLines(obj[key]);
+  ta.addEventListener("input", () => { obj[key] = linesToArr(ta.value); queuePreview(); });
+  ta.addEventListener("blur", refresh);
+  return ta;
+}
+function field(labelText, control, opts = {}) {
+  return el("div", { class: "field" + (opts.full ? " full" : "") },
+    el("label", {}, labelText, opts.hint ? el("span", { class: "hint" }, " · " + opts.hint) : null),
+    control);
+}
+
+/* ---------- General ---------- */
+function renderGeneral() {
+  return [
+    el("h1", { class: "sec-title" }, "General"),
+    el("p", { class: "sec-desc" }, "Master switches that gate everything Bouncer does."),
+    el("div", { class: "card" },
+      el("h4", {}, "Base"),
+      el("div", { class: "row" },
+        bindToggle(config.base, "enabled", "Bouncer enabled", "Master kill-switch. Off = pass every request through."),
+      ),
+      el("div", { class: "row" },
+        bindToggle(config.base, "admin_effective", "Enforce on admins", "When off, admin-role users bypass all checks."),
+      )
+    ),
+    el("div", { class: "card" },
+      el("h4", {}, "Global rate-limit scope"),
+      el("div", { class: "row" },
+        bindToggle(config.global_limit, "enabled", "Count requests globally", "On = one shared counter per user across all model groups. Off = per model group."),
+      ),
+      el("div", { class: "muted-note" }, "Affects how request history is bucketed for every rate limit below.")
+    )
+  ];
+}
+
+/* ---------- Auth & Access ---------- */
+function renderAuth() {
+  return [
+    el("h1", { class: "sec-title" }, "Auth & Access"),
+    el("p", { class: "sec-desc" }, "Gate access by email domain, an explicit whitelist, or exempt trusted users from every check."),
+    el("div", { class: "card" },
+      el("h4", {}, "Email-provider auth"),
+      el("div", { class: "row" }, bindToggle(config.auth, "enabled", "Restrict by email domain")),
+      el("div", { class: "row" },
+        field("Allowed providers", bindLines(config.auth, "providers", { placeholder: "gmail.com\noutlook.com", rows: 4 }), { full: true, hint: "domain part of the email, one per line" })
+      ),
+      el("div", { class: "row" },
+        field("Deny message", bindText(config.auth, "deny_msg"), { full: true })
+      )
+    ),
+    el("div", { class: "card" },
+      el("h4", {}, "Whitelist"),
+      el("div", { class: "row" }, bindToggle(config.whitelist, "enabled", "Only listed emails may access anything")),
+      el("div", { class: "row" },
+        field("Whitelisted emails", bindLines(config.whitelist, "emails", { placeholder: "alice@example.com", rows: 5 }), { full: true })
+      )
+    ),
+    el("div", { class: "card" },
+      el("h4", {}, "Exemption"),
+      el("div", { class: "row" }, bindToggle(config.exemption, "enabled", "Listed emails skip ALL checks")),
+      el("div", { class: "row" },
+        field("Exempt emails", bindLines(config.exemption, "emails", { placeholder: "trusted@example.com", rows: 5 }), { full: true })
+      ),
+      el("div", { class: "muted-note" }, "Exempt users bypass auth, whitelist, bans, rate limits and clipping.")
+    )
+  ];
+}
+
+/* ---------- Model Groups ---------- */
+function renderModels() {
+  const wrap = el("div", {});
+  wrap.append(
+    el("h1", { class: "sec-title" }, "Model Groups"),
+    el("p", { class: "sec-desc" }, "Bucket model IDs together. User-group permissions are granted per model group. A model in no group is treated as ‘ungrouped’ (uses each user group's default permissions)."),
+  );
+  if (!config.model_groups.length) {
+    wrap.append(el("div", { class: "empty" }, "No model groups yet."));
+  }
+  config.model_groups.forEach((mg, idx) => {
+    const card = el("div", { class: "card group-card" });
+    card.append(
+      el("div", { class: "group-head" },
+        el("div", { style: "display:flex;align-items:center;gap:10px;flex:1" },
+          el("span", { class: "gtitle" }, mg.name || "(unnamed)"),
+          el("span", { class: "pill" }, "id: " + (mg.id || "—")),
+          el("span", { class: "pill" }, mg.models.length + " model" + (mg.models.length === 1 ? "" : "s"))
+        ),
+        el("button", { class: "danger sm", onclick: () => { config.model_groups.splice(idx, 1); cleanupPermissions(); render(); } }, "Delete")
+      ),
+      el("div", { class: "row" },
+        field("Name", (() => { const i = bindText(mg, "name"); i.addEventListener("blur", render); return i; })()),
+        field("Group ID", (() => {
+          const i = bindText(mg, "id");
+          i.addEventListener("blur", () => { mg.id = slug(mg.id || mg.name); cleanupPermissions(); render(); });
+          return i;
+        })(), { hint: "stable key used in permissions" })
+      ),
+      el("div", { class: "row" },
+        field("Model IDs", bindLines(mg, "models", { placeholder: "gpt-4o\nllama3:8b\nopenai/gpt-4o-mini", rows: 5 }), { full: true, hint: "matches provider / OpenWebUI variants automatically" })
+      )
+    );
+    wrap.append(card);
+  });
+  wrap.append(el("button", { class: "primary", onclick: addModelGroup }, "＋ Add model group"));
+  return wrap;
+}
+function addModelGroup() {
+  let base = "group", id = base, n = 1;
+  const ids = new Set(config.model_groups.map(g => g.id));
+  while (ids.has(id)) id = base + "_" + (++n);
+  config.model_groups.push({ id, name: "New Model Group", models: [] });
+  render();
+}
+
+/* ---------- User Groups (with permission matrix) ---------- */
+function renderUsers() {
+  const wrap = el("div", {});
+  wrap.append(
+    el("h1", { class: "sec-title" }, "User Groups"),
+    el("p", { class: "sec-desc" }, "Match users by email to a group (highest priority wins). A group with an empty email list is the catch-all default. Each group sets a permission profile per model group."),
+  );
+  config.user_groups.forEach((ug, idx) => {
+    ug.default_permissions = ug.default_permissions || clone(DEFAULT_CONFIG.user_groups[0].default_permissions);
+    ug.permissions = ug.permissions || {};
+    const isCatchAll = !ug.emails || ug.emails.length === 0;
+    const card = el("div", { class: "card group-card" });
+    card.append(
+      el("div", { class: "group-head" },
+        el("div", { style: "display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap" },
+          el("span", { class: "gtitle" }, ug.name || "(unnamed)"),
+          el("span", { class: "pill" }, "id: " + (ug.id || "—")),
+          el("span", { class: "pill" }, "priority " + (ug.priority ?? 0)),
+          isCatchAll ? el("span", { class: "pill", style: "border-color:var(--accent);color:var(--accent)" }, "catch-all default") : null
+        ),
+        el("button", { class: "danger sm", onclick: () => { config.user_groups.splice(idx, 1); render(); } }, "Delete")
+      ),
+      el("div", { class: "row" },
+        field("Name", (() => { const i = bindText(ug, "name"); i.addEventListener("blur", render); return i; })()),
+        field("Group ID", (() => { const i = bindText(ug, "id"); i.addEventListener("blur", () => { ug.id = slug(ug.id || ug.name); render(); }); return i; })()),
+        field("Priority", (() => { const i = bindNum(ug, "priority"); i.addEventListener("blur", render); return i; })(), { hint: "higher wins on email match" })
+      ),
+      el("div", { class: "row" },
+        field("Member emails", (() => { const t = bindLines(ug, "emails", { placeholder: "leave empty = default group", rows: 4 }); return t; })(),
+          { full: true, hint: "empty list = catch-all for everyone unmatched" })
+      ),
+      permMatrix(ug)
+    );
+    wrap.append(card);
+  });
+  wrap.append(el("button", { class: "primary", onclick: addUserGroup }, "＋ Add user group"));
+  return wrap;
+}
+function addUserGroup() {
+  let base = "group", id = base, n = 1;
+  const ids = new Set(config.user_groups.map(g => g.id));
+  while (ids.has(id)) id = base + "_" + (++n);
+  config.user_groups.push({
+    id, name: "New User Group", priority: 0, emails: ["user@example.com"],
+    default_permissions: clone(DEFAULT_CONFIG.user_groups[0].default_permissions),
+    permissions: {}
+  });
+  render();
+}
+function cleanupPermissions() {
+  const valid = new Set(config.model_groups.map(g => g.id));
+  for (const ug of config.user_groups) {
+    if (!isObj(ug.permissions)) continue;
+    for (const k of Object.keys(ug.permissions)) if (!valid.has(k)) delete ug.permissions[k];
+  }
+}
+function permMatrix(ug) {
+  const box = el("div", {});
+  box.append(el("label", { style: "display:block;margin:6px 0 4px" }, "Permissions",
+    el("span", { class: "hint" }, " · 0 = unlimited for that limit")));
+  const grid = el("div", { class: "perm-grid" });
+  grid.append(el("div", { class: "perm-row head" },
+    el("div", {}, "Model group"), el("div", {}, "Access"),
+    ...PERM_KEYS.map(k => el("div", {}, PERM_LABELS[k]))
+  ));
+  // default row
+  grid.append(permRow("Default / ungrouped", "default_permissions", ug.default_permissions, ug, true));
+  // per model group
+  config.model_groups.forEach(mg => {
+    const p = ug.permissions[mg.id] || (ug.permissions[mg.id] = { enabled: false, rpm: 0, rph: 0, win_time: 0, win_limit: 0, clip: 0 });
+    grid.append(permRow(mg.name, mg.id, p, ug, false));
+  });
+  box.append(grid);
+  box.append(el("div", { class: "muted-note" }, "‘Access’ off denies the group access to that model group. The Default row applies to models in no group."));
+  return box;
+}
+function permRow(name, idLabel, perm, ug, isDefault) {
+  const row = el("div", { class: "perm-row" + (perm.enabled ? "" : " disabled") });
+  const enabledInput = el("input", { type: "checkbox" });
+  enabledInput.checked = !!perm.enabled;
+  enabledInput.addEventListener("change", () => { perm.enabled = enabledInput.checked; row.classList.toggle("disabled", !perm.enabled); queuePreview(); });
+  row.append(
+    el("div", { class: "pname" }, name, el("small", {}, isDefault ? "default_permissions" : idLabel)),
+    el("div", {}, el("label", { class: "toggle" }, enabledInput, el("span", { class: "switch" }))),
+    ...PERM_KEYS.map(k => el("div", {}, (() => {
+      const i = el("input", { type: "number", min: "0" });
+      i.value = perm[k] ?? 0;
+      i.addEventListener("input", () => { perm[k] = Math.max(0, parseInt(i.value || "0", 10) || 0); queuePreview(); });
+      return i;
+    })()))
+  );
+  return row;
+}
+
+/* ---------- Fallback ---------- */
+function renderFallback() {
+  return [
+    el("h1", { class: "sec-title" }, "Fallback"),
+    el("p", { class: "sec-desc" }, "Instead of denying a rate-limited request, silently switch it to a cheaper model."),
+    el("div", { class: "card" },
+      el("div", { class: "row" }, bindToggle(config.fallback, "enabled", "Enable fallback on rate-limit")),
+      el("div", { class: "row" },
+        field("Fallback model ID", bindText(config.fallback, "model", { placeholder: "qwen2:0.5b" }))
+      ),
+      el("div", { class: "row" }, bindToggle(config.fallback, "notify", "Notify user when switched")),
+      el("div", { class: "row" },
+        field("Notify message", bindText(config.fallback, "notify_msg"), { full: true })
+      )
+    )
+  ];
+}
+
+/* ---------- Ban list ---------- */
+function renderBans() {
+  const wrap = el("div", {});
+  wrap.append(
+    el("h1", { class: "sec-title" }, "Ban List"),
+    el("p", { class: "sec-desc" }, "Block specific emails with a custom suspension message.")
+  );
+  if (!config.ban_reasons.length) wrap.append(el("div", { class: "empty" }, "No bans configured."));
+  config.ban_reasons.forEach((b, idx) => {
+    b.emails = b.emails || [];
+    const card = el("div", { class: "card group-card" });
+    card.append(
+      el("div", { class: "group-head" },
+        el("span", { class: "gtitle" }, "Ban rule #" + (idx + 1)),
+        el("button", { class: "danger sm", onclick: () => { config.ban_reasons.splice(idx, 1); render(); } }, "Delete")
+      ),
+      el("div", { class: "row" }, field("Message shown to banned user", bindText(b, "msg", { placeholder: "Account Suspended" }), { full: true })),
+      el("div", { class: "row" }, field("Banned emails", bindLines(b, "emails", { rows: 3 }), { full: true }))
+    );
+    wrap.append(card);
+  });
+  wrap.append(el("button", { class: "primary", onclick: () => { config.ban_reasons.push({ emails: [], msg: "Account Suspended" }); render(); } }, "＋ Add ban rule"));
+  return wrap;
+}
+
+/* ---------- Ads ---------- */
+function renderAds() {
+  return [
+    el("h1", { class: "sec-title" }, "Ads"),
+    el("p", { class: "sec-desc" }, "Emit a random status message with each request (shown as ‘AD: …’ in Open WebUI)."),
+    el("div", { class: "card" },
+      el("div", { class: "row" }, bindToggle(config.ads, "enabled", "Enable ad messages")),
+      el("div", { class: "row" }, field("Ad lines", bindLines(config.ads, "content", { placeholder: "Check out our Pro plan!", rows: 6 }), { full: true, hint: "one ad per line, picked at random" }))
+    )
+  ];
+}
+
+/* ---------- Messages / custom strings ---------- */
+function renderMessages() {
+  const cs = config.custom_strings;
+  const defs = [
+    ["group_no_permission", "Group access denied", "{u_group}, {m_group}"],
+    ["rate_limit_deny", "Rate limit hit", "{reason}"],
+    ["whitelist_deny", "Not in whitelist", "—"],
+    ["tier_mismatch", "Legacy: tier mismatch", "{u_tier}, {m_tier}"],
+    ["user_deny_model", "Legacy: user denied model", "{u_tier}, {model_id}"],
+    ["model_wl_deny", "Legacy: model whitelist", "{m_tier}"],
+    ["model_bl_deny", "Legacy: model blacklist", "{m_tier}"],
+  ];
+  const card = el("div", { class: "card" });
+  defs.forEach(([key, label, vars]) => {
+    card.append(el("div", { class: "row" },
+      field(label, bindText(cs, key), { full: true, hint: "vars: " + vars })));
+  });
+  return [
+    el("h1", { class: "sec-title" }, "Messages"),
+    el("p", { class: "sec-desc" }, "Customize the text shown when a request is denied. Placeholders in braces are filled in at runtime."),
+    card
+  ];
+}
+
+/* ---------- Logging ---------- */
+function renderLogging() {
+  const L = config.logging;
+  return [
+    el("h1", { class: "sec-title" }, "Logging"),
+    el("p", { class: "sec-desc" }, "Server-side print logging (visible in Open WebUI logs). User-dict off redacts emails."),
+    el("div", { class: "card" },
+      el("div", { class: "row" }, bindToggle(L, "enabled", "Logging enabled")),
+      el("div", { class: "row" }, bindToggle(L, "bouncer_log", "Bouncer decisions")),
+      el("div", { class: "row" }, bindToggle(L, "inlet", "Inlet (requests)")),
+      el("div", { class: "row" }, bindToggle(L, "outlet", "Outlet (responses)")),
+      el("div", { class: "row" }, bindToggle(L, "stream", "Stream chunks")),
+      el("div", { class: "row" }, bindToggle(L, "user_dict", "Log full user dict (includes email)"))
+    )
+  ];
+}
+
+const RENDERERS = {
+  general: renderGeneral, auth: renderAuth, models: renderModels, users: renderUsers,
+  fallback: renderFallback, bans: renderBans, ads: renderAds, messages: renderMessages, logging: renderLogging
+};
+
+/* ============================================================
+   Shell render + preview
+   ============================================================ */
+function renderNav() {
+  const nav = $("#nav");
+  nav.innerHTML = "";
+  SECTIONS.forEach(s => {
+    const c = s.count();
+    const a = el("a", { class: activeSection === s.id ? "active" : "", onclick: () => { activeSection = s.id; render(); } },
+      el("span", {}, s.label),
+      c != null ? el("span", { class: "badge" }, String(c)) : el("span", {}));
+    nav.append(a);
+  });
+}
+function render() {
+  renderNav();
+  const content = $("#content");
+  content.innerHTML = "";
+  const section = el("div", { class: "section active" });
+  const out = RENDERERS[activeSection]();
+  section.append(...(Array.isArray(out) ? out : [out]));
+  content.append(section);
+  updatePreview();
+}
+
+let previewTimer = null;
+function queuePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 120); }
+function updatePreview() {
+  const json = buildJson();
+  $("#jsonOut").textContent = json;
+  $("#jsonStatus").textContent = "valid";
+  $("#jsonStatus").style.color = "var(--green)";
+}
+function buildJson() {
+  // Export in a stable, readable key order; pass through any unknown/legacy keys.
+  const ordered = {};
+  const order = ["base", "auth", "whitelist", "exemption", "priority", "global_limit",
+    "model_groups", "user_groups", "ban_reasons", "fallback", "logging", "ads", "custom_strings"];
+  for (const k of order) if (k in config) ordered[k] = config[k];
+  for (const k of Object.keys(config)) if (!(k in ordered)) ordered[k] = config[k];
+  return JSON.stringify(ordered, null, 2);
+}
+function refresh() { render(); }
+
+/* ============================================================
+   Import / Export / actions
+   ============================================================ */
+function loadConfig(raw) {
+  let parsed;
+  try { parsed = parseConfig(raw); }
+  catch (e) { toast("Invalid JSON: " + e.message, "err"); return false; }
+  if (!isObj(parsed)) { toast("Config root must be an object", "err"); return false; }
+  config = mergeDefaults(parsed, DEFAULT_CONFIG);
+  // normalise group shapes
+  config.model_groups = (config.model_groups || []).map(g => ({ id: slug(g.id || g.name || "group"), name: g.name || g.id || "Group", models: Array.isArray(g.models) ? g.models : [] }));
+  config.user_groups = (config.user_groups || []).map(g => ({
+    ...g,
+    id: slug(g.id || g.name || "group"),
+    emails: Array.isArray(g.emails) ? g.emails : [],
+    default_permissions: g.default_permissions || clone(DEFAULT_CONFIG.user_groups[0].default_permissions),
+    permissions: isObj(g.permissions) ? g.permissions : {}
+  }));
+  cleanupPermissions();
+  render();
+  toast("Config loaded", "ok");
+  return true;
+}
+
+$("#fileInput").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => loadConfig(r.result);
+  r.readAsText(f);
+  e.target.value = "";
+});
+
+$("#pasteBtn").addEventListener("click", async () => {
+  try {
+    const txt = await navigator.clipboard.readText();
+    if (!txt) { toast("Clipboard empty", "err"); return; }
+    loadConfig(txt);
+  } catch (e) {
+    const txt = prompt("Paste your config_json here:");
+    if (txt) loadConfig(txt);
+  }
+});
+
+$("#copyBtn").addEventListener("click", async () => {
+  const json = buildJson();
+  try { await navigator.clipboard.writeText(json); toast("Copied to clipboard", "ok"); }
+  catch (e) {
+    const ta = el("textarea", {}); ta.value = json; document.body.append(ta); ta.select();
+    document.execCommand("copy"); ta.remove(); toast("Copied to clipboard", "ok");
+  }
+});
+
+$("#downloadBtn").addEventListener("click", () => {
+  const blob = new Blob([buildJson()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = el("a", { href: url, download: "bouncer_config.json" });
+  document.body.append(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast("Exported bouncer_config.json", "ok");
+});
+
+$("#resetBtn").addEventListener("click", () => {
+  if (confirm("Reset to default configuration? Unsaved changes are lost.")) {
+    config = clone(DEFAULT_CONFIG); activeSection = "general"; render(); toast("Reset to defaults", "ok");
+  }
+});
+
+/* boot */
+render();
+</script>
+</body>
+</html>
