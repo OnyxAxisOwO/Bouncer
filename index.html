@@ -259,6 +259,7 @@ const I18N = {
     modelIdsHint: "matches provider / OpenWebUI variants automatically",
     delete: "Delete",
     addModelGroup: "＋ Add model group",
+    groupAdsSection: "Group Specific Advertisement",
 
     // users
     usersTitle: "User Groups",
@@ -396,6 +397,7 @@ const I18N = {
     modelIdsHint: "自动匹配提供商 / OpenWebUI 变体",
     delete: "删除",
     addModelGroup: "＋ 添加模型组",
+    groupAdsSection: "该模型组的专属广告",
 
     // users
     usersTitle: "用户组",
@@ -496,7 +498,7 @@ const DEFAULT_CONFIG = {
   exemption: { enabled: false, emails: [] },
   priority: { user_priority: false },
   global_limit: { enabled: false },
-  model_groups: [ { id: "default", name: "Default Models", models: [] } ],
+  model_groups: [ { id: "default", name: "Default Models", models: [], ads: { enabled: false, content: [] } } ],
   user_groups: [ {
     id: "default", name: "Default Users", priority: 0, emails: [],
     default_permissions: { enabled: false, rpm: 0, rph: 0, win_time: 0, win_limit: 0, clip: 0 },
@@ -710,6 +712,7 @@ function renderModels() {
     wrap.append(el("div", { class: "empty" }, t("noModelGroups")));
   }
   config.model_groups.forEach((mg, idx) => {
+    mg.ads = mg.ads || { enabled: false, content: [] };
     const card = el("div", { class: "card group-card" });
     card.append(
       el("div", { class: "group-head" },
@@ -730,6 +733,13 @@ function renderModels() {
       ),
       el("div", { class: "row" },
         field(t("modelIds"), bindLines(mg, "models", { placeholder: "gpt-4o\nllama3:8b\nopenai/gpt-4o-mini", rows: 5 }), { full: true, hint: t("modelIdsHint") })
+      ),
+      el("div", { style: "margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 14px;" },
+        el("h5", { style: "margin: 0 0 10px 0; font-size: 13px; color: var(--muted);" }, t("groupAdsSection")),
+        el("div", { class: "row" }, bindToggle(mg.ads, "enabled", "enableAds")),
+        el("div", { class: "row" },
+          field(t("adLines"), bindLines(mg.ads, "content", { placeholder: t("adPlaceholder"), rows: 3 }), { full: true, hint: t("adLinesHint") })
+        )
       )
     );
     wrap.append(card);
@@ -741,7 +751,7 @@ function addModelGroup() {
   let base = "group", id = base, n = 1;
   const ids = new Set(config.model_groups.map(g => g.id));
   while (ids.has(id)) id = base + "_" + (++n);
-  config.model_groups.push({ id, name: "New Model Group", models: [] });
+  config.model_groups.push({ id, name: "New Model Group", models: [], ads: { enabled: false, content: [] } });
   render();
 }
 
@@ -991,7 +1001,15 @@ function loadConfig(raw) {
   catch (e) { toast(t("invalidJson") + e.message, "err"); return false; }
   if (!isObj(parsed)) { toast(t("configRootError"), "err"); return false; }
   config = mergeDefaults(parsed, DEFAULT_CONFIG);
-  config.model_groups = (config.model_groups || []).map(g => ({ id: slug(g.id || g.name || "group"), name: g.name || g.id || "Group", models: Array.isArray(g.models) ? g.models : [] }));
+  config.model_groups = (config.model_groups || []).map(g => ({
+    id: slug(g.id || g.name || "group"),
+    name: g.name || g.id || "Group",
+    models: Array.isArray(g.models) ? g.models : [],
+    ads: isObj(g.ads) ? {
+      enabled: !!g.ads.enabled,
+      content: Array.isArray(g.ads.content) ? g.ads.content : []
+    } : { enabled: false, content: [] }
+  }));
   config.user_groups = (config.user_groups || []).map(g => ({
     ...g,
     id: slug(g.id || g.name || "group"),
