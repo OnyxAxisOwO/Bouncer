@@ -168,17 +168,20 @@
   }
 
   @media (max-width: 768px) {
-    header.topbar { padding: 0 12px; gap: 8px; }
+    header.topbar { padding: 0 12px; gap: 8px; height: 53px; overflow: hidden; }
     .logo { font-size: 14px; }
+    .spacer { display: none; } /* 移动端移除不必要的空隙占位 */
+    
     .btn-row {
-      max-width: calc(100% - 100px);
+      flex: 1;
+      flex-wrap: nowrap !important; /* 关键点：强制禁止操作按钮换行 */
       overflow-x: auto;
-      white-space: nowrap;
-      gap: 4px;
       -webkit-overflow-scrolling: touch;
+      gap: 6px;
+      justify-content: flex-end;
     }
     .btn-row::-webkit-scrollbar { display: none; }
-    .btn-row button { padding: 5px 8px; font-size: 12px; flex: 0 0 auto; }
+    .btn-row button { padding: 5px 8px; font-size: 12px; flex: 0 0 auto; } /* 防止按钮本身被弹性压缩 */
 
     .layout { display: block; min-height: auto; }
     
@@ -196,7 +199,7 @@
     }
     nav.side::-webkit-scrollbar { display: none; }
     nav.side a {
-      margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; flex-shrink: 0;
     }
     nav.side a .badge { font-size: 10px; padding: 1px 5px; }
 
