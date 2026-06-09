@@ -28,16 +28,18 @@
     color: var(--text);
     font-size: 14px;
     line-height: 1.5;
+    overflow-x: hidden;
   }
   header.topbar {
     position: sticky; top: 0; z-index: 50;
     display: flex; align-items: center; gap: 14px;
-    padding: 12px 20px;
+    padding: 0 20px;
+    height: 53px;
     background: rgba(15,17,21,.92);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--border);
   }
-  .logo { font-weight: 700; font-size: 16px; letter-spacing: .3px; display:flex; align-items:center; gap:8px;}
+  .logo { font-weight: 700; font-size: 16px; letter-spacing: .3px; display:flex; align-items:center; gap:8px; flex-shrink: 0;}
   .logo .dot { width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);}
   .ver { color: var(--muted); font-size: 12px; font-weight: 500; }
   .spacer { flex: 1; }
@@ -156,7 +158,73 @@
   .lang-btn { font-size: 12px; padding: 5px 10px; border-radius: 20px; min-width: 52px; }
   .about-link { color: var(--accent); text-decoration: none; font-weight: 500; transition: color .12s; }
   .about-link:hover { color: #4f7df0; text-decoration: underline; }
-  @media (max-width: 1100px) { .layout { grid-template-columns: 200px 1fr; } aside.preview { display:none; } }
+
+  /* ============================================================
+     Responsive Media Queries
+     ============================================================ */
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 200px 1fr; }
+    aside.preview { display:none; }
+  }
+
+  @media (max-width: 768px) {
+    header.topbar { padding: 0 12px; gap: 8px; height: 53px; overflow: hidden; }
+    .logo { font-size: 14px; }
+    .spacer { display: none; } /* 移动端移除不必要的空隙占位 */
+    
+    .btn-row {
+      flex: 1;
+      flex-wrap: nowrap !important; /* 关键点：强制禁止操作按钮换行 */
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+    .btn-row::-webkit-scrollbar { display: none; }
+    .btn-row button { padding: 5px 8px; font-size: 12px; flex: 0 0 auto; } /* 防止按钮本身被弹性压缩 */
+
+    .layout { display: block; min-height: auto; }
+    
+    nav.side {
+      position: sticky; top: 53px;
+      height: auto; width: 100%;
+      display: flex; gap: 4px;
+      padding: 8px; margin: 0;
+      overflow-x: auto; white-space: nowrap;
+      border-right: none; border-bottom: 1px solid var(--border);
+      background: rgba(15,17,21,.95);
+      backdrop-filter: blur(8px);
+      z-index: 40;
+      -webkit-overflow-scrolling: touch;
+    }
+    nav.side::-webkit-scrollbar { display: none; }
+    nav.side a {
+      margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; flex-shrink: 0;
+    }
+    nav.side a .badge { font-size: 10px; padding: 1px 5px; }
+
+    main.content { padding: 16px 12px; overflow-y: visible; }
+    
+    aside.preview {
+      display: flex !important;
+      position: static; height: 320px; width: 100%;
+      border-left: none; border-top: 1px solid var(--border);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .row { flex-direction: column; align-items: stretch; gap: 12px; }
+    .field { min-width: 100%; }
+    .group-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .group-head button { align-self: flex-end; }
+    
+    .perm-grid { overflow-x: auto; display: block; -webkit-overflow-scrolling: touch; }
+    .perm-row {
+      grid-template-columns: 120px 55px repeat(5, 65px);
+      width: max-content;
+    }
+    .perm-row > div { padding: 6px 4px; }
+  }
 </style>
 </head>
 <body>
