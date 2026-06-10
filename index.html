@@ -318,6 +318,7 @@ const I18N = {
     navAuth: "Auth & Access",
     navModels: "Model Groups",
     navUsers: "User Groups",
+    navKeywords: "Keyword Filter",
     navFallback: "Fallback",
     navBans: "Ban List",
     navAds: "Ads",
@@ -352,7 +353,7 @@ const I18N = {
     exemption: "Exemption",
     exemptionEnabled: "Listed emails skip ALL checks",
     exemptEmails: "Exempt emails",
-    exemptNote: "Exempt users bypass auth, whitelist, bans, rate limits and clipping.",
+    exemptNote: "Exempt users bypass auth, whitelist, bans, keyword filter, rate limits and clipping.",
 
     // models
     modelsTitle: "Model Groups",
@@ -383,6 +384,29 @@ const I18N = {
     defaultUngrouped: "Default / ungrouped",
     permNote: "'Access' off denies the group access to that model group. The Default row applies to models in no group.",
     addUserGroup: "＋ Add user group",
+
+    // keyword filter
+    keywordsTitle: "Keyword Filter",
+    keywordsDesc: "Scan user messages for keywords. Either block the request outright, or mask the matched text before it reaches the model. Set a global policy here; each model group can override it.",
+    kwEnabled: "Enable keyword filter",
+    kwMode: "Action on match",
+    kwModeMask: "Mask (replace matched text)",
+    kwModeBlock: "Block (reject the request)",
+    kwKeywords: "Keywords",
+    kwKeywordsHint: "one keyword per line, case-insensitive",
+    kwMaskMode: "Mask style",
+    kwMaskHash: "Hash — #####",
+    kwMaskStar: "Star — *****",
+    kwMaskCustom: "Custom string",
+    kwCustomMask: "Custom mask text",
+    kwCustomMaskHint: "used only when mask style = Custom",
+    kwBlockMsg: "Block message",
+    kwBlockMsgHint: "shown to the user when action = Block",
+    kwScanRoles: "Scan roles",
+    kwScanRolesHint: "which message roles to scan, one per line (usually just: user)",
+    kwGroupOverride: "Keyword Filter Override",
+    kwGroupOverrideOn: "Override the global filter for this group",
+    kwGroupOverrideNote: "When on, this model group uses ONLY the settings below and ignores the global keyword filter. Set 'Enable' off here to fully disable filtering for this group.",
 
     // fallback
     fallbackTitle: "Fallback",
@@ -429,6 +453,7 @@ const I18N = {
     outletLog: "Outlet (responses)",
     streamLog: "Stream chunks",
     userDictLog: "Log full user dict (includes email)",
+    filterMediaLog: "Filter media in logs (hide base64)",
 
     // about
     aboutTitle: "About Bouncer",
@@ -461,6 +486,7 @@ const I18N = {
     navAuth: "认证与访问",
     navModels: "模型组",
     navUsers: "用户组",
+    navKeywords: "关键词过滤",
     navFallback: "降级回退",
     navBans: "封禁列表",
     navAds: "广告",
@@ -495,7 +521,7 @@ const I18N = {
     exemption: "豁免",
     exemptionEnabled: "列出的邮件跳过所有检查",
     exemptEmails: "豁免邮件",
-    exemptNote: "豁免用户绕过认证、白名单、封禁、速率限制和裁剪。",
+    exemptNote: "豁免用户绕过认证、白名单、封禁、关键词过滤、速率限制和裁剪。",
 
     // models
     modelsTitle: "模型组",
@@ -526,6 +552,29 @@ const I18N = {
     defaultUngrouped: "默认 / 未分组",
     permNote: "「访问」关闭表示该组无法访问该模型组。默认行适用于未归组的模型。",
     addUserGroup: "＋ 添加用户组",
+
+    // keyword filter
+    keywordsTitle: "关键词过滤",
+    keywordsDesc: "扫描用户消息中的关键词。可直接拦截请求，或在消息送达模型前把命中文本屏蔽替换。此处设全局策略，每个模型组都可单独覆盖。",
+    kwEnabled: "启用关键词过滤",
+    kwMode: "命中后动作",
+    kwModeMask: "屏蔽（替换命中文本）",
+    kwModeBlock: "拦截（拒绝该请求）",
+    kwKeywords: "关键词",
+    kwKeywordsHint: "每行一个关键词，不区分大小写",
+    kwMaskMode: "屏蔽样式",
+    kwMaskHash: "井号 — #####",
+    kwMaskStar: "星号 — *****",
+    kwMaskCustom: "自定义字符串",
+    kwCustomMask: "自定义屏蔽文本",
+    kwCustomMaskHint: "仅当屏蔽样式为「自定义」时生效",
+    kwBlockMsg: "拦截提示消息",
+    kwBlockMsgHint: "动作为「拦截」时向用户显示",
+    kwScanRoles: "扫描角色",
+    kwScanRolesHint: "扫描哪些消息角色，每行一个（通常只填 user）",
+    kwGroupOverride: "关键词过滤覆盖",
+    kwGroupOverrideOn: "为该组覆盖全局过滤",
+    kwGroupOverrideNote: "开启后，该模型组仅使用下方设置，忽略全局关键词过滤。把下面的「启用」关掉，即可彻底关闭该组的过滤。",
 
     // fallback
     fallbackTitle: "降级回退",
@@ -572,6 +621,7 @@ const I18N = {
     outletLog: "出站（响应）",
     streamLog: "流式块",
     userDictLog: "记录完整用户字典（含邮件）",
+    filterMediaLog: "日志过滤多模态（隐藏 base64）",
 
     // about
     aboutTitle: "关于 Bouncer",
@@ -605,6 +655,19 @@ function applyStaticLabels() {
   document.documentElement.lang = lang;
 }
 
+/* ---------- keyword_filter default factory ---------- */
+function newKeywordFilter() {
+  return {
+    enabled: true,
+    mode: "mask",
+    keywords: [],
+    mask_mode: "hash",
+    custom_mask: "(此内容已屏蔽)",
+    block_msg: "Your message contains blocked content and was rejected. Please edit and retry.",
+    scan_roles: ["user"]
+  };
+}
+
 /* ---------- config defaults ---------- */
 const DEFAULT_CONFIG = {
   base: { enabled: true, admin_effective: false },
@@ -621,7 +684,8 @@ const DEFAULT_CONFIG = {
   } ],
   ban_reasons: [],
   fallback: { enabled: false, model: "qwen2:0.5b", notify: true, notify_msg: "Rate limit exceeded. Switched to fallback model." },
-  logging: { enabled: true, bouncer_log: true, inlet: false, outlet: false, stream: false, user_dict: false },
+  keyword_filter: { enabled: false, mode: "mask", keywords: [], mask_mode: "hash", custom_mask: "(此内容已屏蔽)", block_msg: "Your message contains blocked content and was rejected. Please edit and retry.", scan_roles: ["user"] },
+  logging: { enabled: true, bouncer_log: true, inlet: false, outlet: false, stream: false, user_dict: false, filter_media: true },
   ads: { enabled: false, content: [] },
   custom_strings: {
     whitelist_deny: "Access Denied: Not in whitelist.",
@@ -720,6 +784,7 @@ const SECTIONS = [
   { id: "auth",     labelKey: "navAuth",     count: () => (config.whitelist.emails.length + config.exemption.emails.length) || null },
   { id: "models",   labelKey: "navModels",   count: () => config.model_groups.length },
   { id: "users",    labelKey: "navUsers",    count: () => config.user_groups.length },
+  { id: "keywords", labelKey: "navKeywords", count: () => (config.keyword_filter && config.keyword_filter.enabled && (config.keyword_filter.keywords || []).length) || null },
   { id: "fallback", labelKey: "navFallback", count: () => null },
   { id: "bans",     labelKey: "navBans",     count: () => config.ban_reasons.length || null },
   { id: "ads",      labelKey: "navAds",      count: () => config.ads.content.length || null },
@@ -746,6 +811,18 @@ function bindNum(obj, key) {
   input.value = obj[key] ?? 0;
   input.addEventListener("input", () => { obj[key] = Math.max(0, parseInt(input.value || "0", 10) || 0); queuePreview(); });
   return input;
+}
+function bindSelect(obj, key, options, fallbackVal) {
+  const sel = el("select");
+  const cur = obj[key] ?? fallbackVal ?? options[0][0];
+  options.forEach(([val, labelKey]) => {
+    const o = el("option", { value: val }, t(labelKey));
+    if (cur === val) o.setAttribute("selected", "selected");
+    sel.append(o);
+  });
+  sel.value = cur;
+  sel.addEventListener("change", () => { obj[key] = sel.value; refresh(); });
+  return sel;
 }
 function bindLines(obj, key, opts = {}) {
   const ta = el("textarea", { placeholder: opts.placeholder || (lang === "zh" ? "每行一条" : "one per line"), rows: opts.rows || 4 });
@@ -817,6 +894,51 @@ function renderAuth() {
   ];
 }
 
+/* ---------- Keyword filter field builder (shared global + per-group) ---------- */
+function keywordFields(k, opts = {}) {
+  const rows = [];
+  if (opts.showEnable !== false) {
+    rows.push(el("div", { class: "row" }, bindToggle(k, "enabled", "kwEnabled")));
+  }
+  rows.push(el("div", { class: "row" },
+    field(t("kwMode"), bindSelect(k, "mode", [["mask", "kwModeMask"], ["block", "kwModeBlock"]], "mask"))
+  ));
+  rows.push(el("div", { class: "row" },
+    field(t("kwKeywords"), bindLines(k, "keywords", { placeholder: lang === "zh" ? "敏感词1\n敏感词2" : "keyword1\nkeyword2", rows: 5 }), { full: true, hint: t("kwKeywordsHint") })
+  ));
+
+  if ((k.mode || "mask") === "mask") {
+    rows.push(el("div", { class: "row" },
+      field(t("kwMaskMode"), bindSelect(k, "mask_mode", [["hash", "kwMaskHash"], ["star", "kwMaskStar"], ["custom", "kwMaskCustom"]], "hash"))
+    ));
+    if ((k.mask_mode || "hash") === "custom") {
+      rows.push(el("div", { class: "row" },
+        field(t("kwCustomMask"), bindText(k, "custom_mask", { placeholder: "(此内容已屏蔽)" }), { full: true, hint: t("kwCustomMaskHint") })
+      ));
+    }
+  } else {
+    rows.push(el("div", { class: "row" },
+      field(t("kwBlockMsg"), bindText(k, "block_msg"), { full: true, hint: t("kwBlockMsgHint") })
+    ));
+  }
+
+  rows.push(el("div", { class: "row" },
+    field(t("kwScanRoles"), bindLines(k, "scan_roles", { placeholder: "user", rows: 2 }), { full: true, hint: t("kwScanRolesHint") })
+  ));
+  return rows;
+}
+
+/* ---------- Keyword Filter (global) ---------- */
+function renderKeywords() {
+  const k = config.keyword_filter || (config.keyword_filter = newKeywordFilter());
+  const card = el("div", { class: "card" }, ...keywordFields(k, { showEnable: true }));
+  return [
+    el("h1", { class: "sec-title" }, t("keywordsTitle")),
+    el("p", { class: "sec-desc" }, t("keywordsDesc")),
+    card
+  ];
+}
+
 /* ---------- Model Groups ---------- */
 function renderModels() {
   const wrap = el("div", {});
@@ -835,7 +957,8 @@ function renderModels() {
         el("div", { style: "display:flex;align-items:center;gap:10px;flex:1" },
           el("span", { class: "gtitle" }, mg.name || "(unnamed)"),
           el("span", { class: "pill" }, "id: " + (mg.id || "—")),
-          el("span", { class: "pill" }, mg.models.length + (lang === "zh" ? " 个模型" : " model" + (mg.models.length === 1 ? "" : "s")))
+          el("span", { class: "pill" }, mg.models.length + (lang === "zh" ? " 个模型" : " model" + (mg.models.length === 1 ? "" : "s"))),
+          isObj(mg.keyword_filter) ? el("span", { class: "pill", style: "border-color:var(--accent);color:var(--accent)" }, lang === "zh" ? "词过滤覆盖" : "kw override") : null
         ),
         el("button", { class: "danger sm", onclick: () => { config.model_groups.splice(idx, 1); cleanupPermissions(); render(); } }, t("delete"))
       ),
@@ -856,7 +979,29 @@ function renderModels() {
         el("div", { class: "row" },
           field(t("adLines"), bindLines(mg.ads, "content", { placeholder: t("adPlaceholder"), rows: 3 }), { full: true, hint: t("adLinesHint") })
         )
-      )
+      ),
+      (() => {
+        const kwBox = el("div", { style: "margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 14px;" });
+        kwBox.append(el("h5", { style: "margin: 0 0 10px 0; font-size: 13px; color: var(--muted);" }, t("kwGroupOverride")));
+
+        const ovInput = el("input", { type: "checkbox" });
+        ovInput.checked = isObj(mg.keyword_filter);
+        ovInput.addEventListener("change", () => {
+          if (ovInput.checked) {
+            mg.keyword_filter = isObj(mg.keyword_filter) ? mg.keyword_filter : newKeywordFilter();
+          } else {
+            delete mg.keyword_filter;
+          }
+          render();
+        });
+        kwBox.append(el("label", { class: "toggle" }, ovInput, el("span", { class: "switch" }), el("span", { class: "lbl" }, t("kwGroupOverrideOn"))));
+
+        if (isObj(mg.keyword_filter)) {
+          kwBox.append(el("div", { class: "muted-note", style: "margin-bottom: 10px;" }, t("kwGroupOverrideNote")));
+          kwBox.append(...keywordFields(mg.keyword_filter, { showEnable: true }));
+        }
+        return kwBox;
+      })()
     );
     wrap.append(card);
   });
@@ -1054,7 +1199,8 @@ function renderLogging() {
       el("div", { class: "row" }, bindToggle(L, "inlet", "inletLog")),
       el("div", { class: "row" }, bindToggle(L, "outlet", "outletLog")),
       el("div", { class: "row" }, bindToggle(L, "stream", "streamLog")),
-      el("div", { class: "row" }, bindToggle(L, "user_dict", "userDictLog"))
+      el("div", { class: "row" }, bindToggle(L, "user_dict", "userDictLog")),
+      el("div", { class: "row" }, bindToggle(L, "filter_media", "filterMediaLog"))
     )
   ];
 }
@@ -1081,6 +1227,7 @@ function renderAbout() {
 
 const RENDERERS = {
   general: renderGeneral, auth: renderAuth, models: renderModels, users: renderUsers,
+  keywords: renderKeywords,
   fallback: renderFallback, bans: renderBans, ads: renderAds, messages: renderMessages, logging: renderLogging, about: renderAbout
 };
 
@@ -1121,7 +1268,7 @@ function updatePreview() {
 function buildJson() {
   const ordered = {};
   const order = ["base", "auth", "whitelist", "exemption", "priority", "global_limit",
-    "model_groups", "user_groups", "ban_reasons", "fallback", "logging", "ads", "custom_strings"];
+    "model_groups", "user_groups", "ban_reasons", "fallback", "keyword_filter", "logging", "ads", "custom_strings"];
   for (const k of order) if (k in config) ordered[k] = config[k];
   for (const k of Object.keys(config)) if (!(k in ordered)) ordered[k] = config[k];
   return JSON.stringify(ordered, null, 2);
@@ -1137,15 +1284,30 @@ function loadConfig(raw) {
   catch (e) { toast(t("invalidJson") + e.message, "err"); return false; }
   if (!isObj(parsed)) { toast(t("configRootError"), "err"); return false; }
   config = mergeDefaults(parsed, DEFAULT_CONFIG);
-  config.model_groups = (config.model_groups || []).map(g => ({
-    id: slug(g.id || g.name || "group"),
-    name: g.name || g.id || "Group",
-    models: Array.isArray(g.models) ? g.models : [],
-    ads: isObj(g.ads) ? {
-      enabled: !!g.ads.enabled,
-      content: Array.isArray(g.ads.content) ? g.ads.content : []
-    } : { enabled: false, content: [] }
-  }));
+  config.model_groups = (config.model_groups || []).map(g => {
+    const mg = {
+      id: slug(g.id || g.name || "group"),
+      name: g.name || g.id || "Group",
+      models: Array.isArray(g.models) ? g.models : [],
+      ads: isObj(g.ads) ? {
+        enabled: !!g.ads.enabled,
+        content: Array.isArray(g.ads.content) ? g.ads.content : []
+      } : { enabled: false, content: [] }
+    };
+    // preserve a per-group keyword_filter override if present
+    if (isObj(g.keyword_filter)) {
+      mg.keyword_filter = {
+        enabled: !!g.keyword_filter.enabled,
+        mode: g.keyword_filter.mode === "block" ? "block" : "mask",
+        keywords: Array.isArray(g.keyword_filter.keywords) ? g.keyword_filter.keywords : [],
+        mask_mode: ["hash", "star", "custom"].includes(g.keyword_filter.mask_mode) ? g.keyword_filter.mask_mode : "hash",
+        custom_mask: typeof g.keyword_filter.custom_mask === "string" ? g.keyword_filter.custom_mask : "(此内容已屏蔽)",
+        block_msg: typeof g.keyword_filter.block_msg === "string" ? g.keyword_filter.block_msg : newKeywordFilter().block_msg,
+        scan_roles: Array.isArray(g.keyword_filter.scan_roles) ? g.keyword_filter.scan_roles : ["user"]
+      };
+    }
+    return mg;
+  });
   config.user_groups = (config.user_groups || []).map(g => ({
     ...g,
     id: slug(g.id || g.name || "group"),
@@ -1153,6 +1315,10 @@ function loadConfig(raw) {
     default_permissions: g.default_permissions || clone(DEFAULT_CONFIG.user_groups[0].default_permissions),
     permissions: isObj(g.permissions) ? g.permissions : {}
   }));
+  // normalize global keyword_filter scan_roles to an array
+  if (isObj(config.keyword_filter) && !Array.isArray(config.keyword_filter.scan_roles)) {
+    config.keyword_filter.scan_roles = ["user"];
+  }
   cleanupPermissions();
   render();
   toast(t("configLoaded"), "ok");
