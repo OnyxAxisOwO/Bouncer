@@ -319,6 +319,7 @@ const I18N = {
     navModels: "Model Groups",
     navUsers: "User Groups",
     navKeywords: "Keyword Filter",
+    navIpLimit: "IP Limits",
     navFallback: "Fallback",
     navBans: "Ban List",
     navAds: "Ads",
@@ -408,6 +409,15 @@ const I18N = {
     kwGroupOverrideOn: "Override the global filter for this group",
     kwGroupOverrideNote: "When on, this model group uses ONLY the settings below and ignores the global keyword filter. Set 'Enable' off here to fully disable filtering for this group.",
 
+    // IP limit
+    ipLimitTitle: "IP Rate Limits",
+    ipLimitDesc: "Prevent multiple accounts from abusing the service from the same IP address.",
+    ipLimitEnabled: "Enable IP limits",
+    ipLimitRPM: "IP RPM",
+    ipLimitRPH: "IP RPH",
+    ipLimitWinTime: "Window Minutes",
+    ipLimitWinLimit: "Window Max Requests",
+
     // fallback
     fallbackTitle: "Fallback",
     fallbackDesc: "Instead of denying a rate-limited request, silently switch it to a cheaper model.",
@@ -487,6 +497,7 @@ const I18N = {
     navModels: "模型组",
     navUsers: "用户组",
     navKeywords: "关键词过滤",
+    navIpLimit: "IP限流",
     navFallback: "降级回退",
     navBans: "封禁列表",
     navAds: "广告",
@@ -575,6 +586,14 @@ const I18N = {
     kwGroupOverride: "关键词过滤覆盖",
     kwGroupOverrideOn: "为该组覆盖全局过滤",
     kwGroupOverrideNote: "开启后，该模型组仅使用下方设置，忽略全局关键词过滤。把下面的「启用」关掉，即可彻底关闭该组的过滤。",
+
+    ipLimitTitle: "IP限流",
+    ipLimitDesc: "限制同一IP下多个账号行为。",
+    ipLimitEnabled: "启用IP限流",
+    ipLimitRPM: "IP每分钟请求数",
+    ipLimitRPH: "IP每小时请求数",
+    ipLimitWinTime: "窗口时间（分钟）",
+    ipLimitWinLimit: "窗口最大请求数",
 
     // fallback
     fallbackTitle: "降级回退",
@@ -676,6 +695,13 @@ const DEFAULT_CONFIG = {
   exemption: { enabled: false, emails: [] },
   priority: { user_priority: false },
   global_limit: { enabled: false },
+  ip_limit: {
+    enabled: false,
+    rpm: 60,
+    rph: 500,
+    win_time: 10,
+    win_limit: 200
+  },
   model_groups: [ { id: "default", name: "Default Models", models: [], ads: { enabled: false, content: [] } } ],
   user_groups: [ {
     id: "default", name: "Default Users", priority: 0, emails: [],
@@ -785,6 +811,7 @@ const SECTIONS = [
   { id: "models",   labelKey: "navModels",   count: () => config.model_groups.length },
   { id: "users",    labelKey: "navUsers",    count: () => config.user_groups.length },
   { id: "keywords", labelKey: "navKeywords", count: () => (config.keyword_filter && config.keyword_filter.enabled && (config.keyword_filter.keywords || []).length) || null },
+  { id: "iplimit", labelKey: "navIpLimit", count: () => null },
   { id: "fallback", labelKey: "navFallback", count: () => null },
   { id: "bans",     labelKey: "navBans",     count: () => config.ban_reasons.length || null },
   { id: "ads",      labelKey: "navAds",      count: () => config.ads.content.length || null },
@@ -1108,6 +1135,59 @@ function permRow(name, idLabel, perm, ug, isDefault) {
   return row;
 }
 
+/* ---------- IP Limit ---------- */
+function renderIpLimit() {
+
+  const ip = config.ip_limit;
+
+  return [
+    el("h1", { class: "sec-title" }, t("ipLimitTitle")),
+
+    el("p", { class: "sec-desc" }, t("ipLimitDesc")),
+
+    el("div", { class: "card" },
+
+      el("div", { class: "row" },
+        bindToggle(ip, "enabled", "ipLimitEnabled")
+      ),
+
+      el("div", { class: "row" },
+
+        field(
+          t("ipLimitRPM"),
+          bindNum(ip, "rpm")
+        ),
+
+        field(
+          t("ipLimitRPH"),
+          bindNum(ip, "rph")
+        )
+      ),
+
+      el("div", { class: "row" },
+
+        field(
+          t("ipLimitWinTime"),
+          bindNum(ip, "win_time")
+        ),
+
+        field(
+          t("ipLimitWinLimit"),
+          bindNum(ip, "win_limit")
+        )
+      ),
+
+      el(
+        "div",
+        { class: "muted-note" },
+        lang === "zh"
+          ? "用于防止多个账号共用同一IP刷接口。支持 Cloudflare CF-Connecting-IP。"
+          : "Prevents abuse from multiple accounts sharing the same IP. Supports Cloudflare CF-Connecting-IP."
+      )
+    )
+  ];
+}
+
 /* ---------- Fallback ---------- */
 function renderFallback() {
   return [
@@ -1227,6 +1307,7 @@ function renderAbout() {
 
 const RENDERERS = {
   general: renderGeneral, auth: renderAuth, models: renderModels, users: renderUsers,
+  iplimit: renderIpLimit,
   keywords: renderKeywords,
   fallback: renderFallback, bans: renderBans, ads: renderAds, messages: renderMessages, logging: renderLogging, about: renderAbout
 };
@@ -1267,7 +1348,7 @@ function updatePreview() {
 }
 function buildJson() {
   const ordered = {};
-  const order = ["base", "auth", "whitelist", "exemption", "priority", "global_limit",
+  const order = ["base", "auth", "whitelist", "exemption", "priority", "global_limit", "ip_limit",
     "model_groups", "user_groups", "ban_reasons", "fallback", "keyword_filter", "logging", "ads", "custom_strings"];
   for (const k of order) if (k in config) ordered[k] = config[k];
   for (const k of Object.keys(config)) if (!(k in ordered)) ordered[k] = config[k];
